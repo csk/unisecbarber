@@ -165,13 +165,6 @@ class PluginBase(object):
             'os': os
         }
 
-        if self.debug:
-            msg="""
-            Host.class_signature: '%s'
-            name: '%s'
-            os: '%s'
-            """ % (Host.class_signature, name, os)
-            self.log("[%s] %s" % (modelactions.ADDHOST, msg), 'DEBUG')
         self.__addToList(obj)
         return obj
 
