@@ -16,7 +16,6 @@ import Queue
 import shlex
 import time
 
-from plugin import PluginProcess
 from modelactions import modelactions
 from utils.logs import getLogger
 

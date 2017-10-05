@@ -422,7 +422,7 @@ class Vuln(ModelBase):
                                  '1' : 'low',
                                  '2' : 'med',
                                  '3' : 'high',
-                                 "4" : 'critical' }
+                                 '4' : 'critical' }
 
 
         if not severity in numeric_severities.values():

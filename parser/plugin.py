@@ -13,6 +13,8 @@ import os
 import re
 import Queue
 import traceback
+import hashlib
+import json
 from models import (Host,
         Interface,
         Service,
@@ -23,14 +25,10 @@ from models import (Host,
         Command
         )
 from modelactions import modelactions
+from common import merge_two_dicts
+
 from config.configuration import getInstanceConfiguration
 CONF = getInstanceConfiguration()
-
-
-
-LOG_PREFIX = {}
-LOG_PREFIX['DEBUG'] = '[+]'
-LOG_PREFIX['INFO'] = '[*]'
 
 class PluginBase(object):
     # TODO: Add class generic identifier
@@ -55,7 +53,7 @@ class PluginBase(object):
         self._pending_actions = Queue.Queue()
         self._settings = {}
         
-        self.parsed_objs = []
+        self.parsed_objs = {}
 
         self.debug = False
 
@@ -136,15 +134,6 @@ class PluginBase(object):
         """
         return None
 
-    def __addPendingAction(self, *args):
-        """
-        Adds a new pending action to the queue
-        Action is build with generic args tuple.
-        The caller of this function has to build the action in the right
-        way since no checks are preformed over args
-        """
-        self._pending_actions.put(args)
-
     def __addToList(self, obj):
         """
         Adds a new pending action to the queue
@@ -152,7 +141,22 @@ class PluginBase(object):
         The caller of this function has to build the action in the right
         way since no checks are preformed over args
         """
-        self.parsed_objs.append(obj)
+        if obj['type'] == Host.class_signature:
+            self.parsed_objs[obj['name']] = obj
+        elif obj['type'] == Interface.class_signature:
+            host = obj['host_id']
+            del obj['host_id']
+            if not obj['type'] in self.parsed_objs[host['name']]:
+                self.parsed_objs[host['name']][obj['type']] = {}
+            self.parsed_objs[host['name']][obj['type']][obj['mac']] = obj
+        elif obj['type'] == Service.class_signature:
+            iface = obj['interface_id']
+            del obj['interface_id']
+            if not obj['type'] in self.parsed_objs[iface['name']][Interface.class_signature][iface['mac']]:
+                self.parsed_objs[iface['name']][Interface.class_signature][iface['mac']][obj['type']] = {}
+            hsh = hashlib.md5(json.dumps(obj, sort_keys=True)).hexdigest()
+            self.parsed_objs[iface['name']][Interface.class_signature][iface['mac']][obj['type']][hsh] = obj
+
 
     def createAndAddHost(self, name, os="unknown"):
         obj =  {
@@ -196,32 +200,10 @@ class PluginBase(object):
             'ipv6_prefix': ipv6_prefix,
             'ipv6_gateway': ipv6_gateway,
             'ipv6_dns': ipv6_dns,
-            'network_segment': network_segment
+            'network_segment': network_segment,
+            'host_id': host_id
         }
 
-        if self.debug:
-            msg="""
-            Interface.class_signature: '%s'
-            name: '%s'
-            mac: '%s'
-            ipv4_address: '%s'
-            ipv4_mask: '%s'
-            ipv4_gateway: '%s'
-            ipv4_dns: '%s'
-            ipv6_address: '%s'
-            ipv6_mask: '%s'
-            ipv6_gateway: '%s'
-            ipv6_dns: '%s'
-            network_segment: '%s'
-            """ % (Interface.class_signature,
-                name, mac, ipv4_address,
-                ipv4_mask, ipv4_gateway, ipv4_dns,
-                ipv6_address, ipv6_prefix,
-                ipv6_gateway, ipv6_dns,
-                network_segment)
-                
-
-            self.log("[%s] %s" % (modelactions.ADDINTERFACE, msg))
         self.__addToList(obj)
         return obj
 
@@ -231,15 +213,19 @@ class PluginBase(object):
                                        status="running", version="unknown",
                                        description=""):
 
-        # serv_obj = model.common.factory.createModelObject(
-        #     Service.class_signature,
-        #     name, protocol=protocol, ports=ports, status=status,
-        #     version=version, description=description, parent_id=interface_id)
+        obj = {
+            'type': Service.class_signature,
+            'name': name,
+            'protocol': protocol,
+            'ports': ports,
+            'status': status,
+            'version': version,
+            'description': description,
+            'interface_id': interface_id
+        }
 
-        # serv_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDSERVICEINT, host_id, interface_id, serv_obj)
-        # return serv_obj.getID()
-        pass
+        self.__addToList(obj)
+        return obj
 
     def createAndAddVulnToHost(self, host_id, name, desc="", ref=[],
                                severity="", resolution=""):
@@ -354,12 +340,6 @@ class PluginBase(object):
         # return cred_obj.getID()
         pass
 
-    def log(self, msg, level='INFO'):
-        print "%s %s" % (LOG_PREFIX[level], msg)
-
-    def devlog(self, msg):
-        print "%s %s" % (LOG_PREFIX[level], msg)
-
 
 class PluginTerminalOutput(PluginBase):
     def __init__(self):
@@ -377,60 +357,3 @@ class PluginCustomOutput(PluginBase):
         # we discard the term_output since it's not necessary
         # for this type of plugins
         self.processReport(self._output_file_path)
-
-
-class PluginProcess(multiprocessing.Process):
-    def __init__(self, plugin_instance, output_queue, new_elem_queue, isReport=False):
-        multiprocessing.Process.__init__(self)
-        self.output_queue = output_queue
-        self.new_elem_queue = new_elem_queue
-        self.plugin = plugin_instance
-        self.isReport = isReport
-
-    def run(self):
-        proc_name = self.name
-        getLogger(self).debug("-" * 40)
-        getLogger(self).debug("proc_name = %s" % proc_name)
-        getLogger(self).debug("Starting run method on PluginProcess")
-        getLogger(self).debug('parent process: %s' % os.getppid())
-        getLogger(self).debug('process id: %s' % os.getpid())
-        getLogger(self).debug("-" * 40)
-        done = False
-        while not done:
-            output = self.output_queue.get()
-            if output is not None:
-                getLogger(self).debug('%s: %s' % (proc_name, "New Output"))
-                try:
-                    if self.isReport:
-                        self.plugin.processReport(output)
-                    else:
-                        self.plugin.processOutput(output)
-                except Exception:
-                    getLogger(self).debug("Plugin raised an exception:")
-                    getLogger(self).debug(traceback.format_exc())
-                else:
-                    while True:
-                        try:
-                            self.new_elem_queue.put(
-                                self.plugin._pending_actions.get(block=False))
-                        except Queue.Empty:
-                            getLogger(self).debug(
-                                ("PluginProcess run _pending_actions"
-                                 " queue Empty. Breaking loop"))
-                            break
-                        except Exception:
-                            getLogger(self).debug(
-                                ("PluginProcess run getting from "
-                                 "_pending_action queue - something strange "
-                                 "happened... unhandled exception?"))
-                            getLogger(self).debug(traceback.format_exc())
-                            break
-
-            else:
-
-                done = True
-                getLogger(self).debug('%s: Exiting' % proc_name)
-
-            self.output_queue.task_done()
-        self.new_elem_queue.put(None)
-        return

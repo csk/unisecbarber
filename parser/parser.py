@@ -21,7 +21,7 @@ from utils.logs import getLogger, setUpLogger
 
 CONF = getInstanceConfiguration()
 
-setUpLogger(True)
+# setUpLogger(False)
 plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
 plugin_controller = PluginController('PluginController', plugin_manager)
 
@@ -53,10 +53,9 @@ def main():
     getLogger().info("plugin.id: %s" % (plugin_id,))
     getLogger().info("modified_cmd_string: %s" % (mod_cmd,))
 
-
     objs = plugin_controller.parseCommand(pid, cmd.returncode, output)
 
-    getLogger().info("parsed data:\n\n %s" % (json.dumps(objs, indent=4, sort_keys=True)))
+    print json.dumps(objs, indent=4, sort_keys=True)
     
 
 if __name__ == '__main__':
