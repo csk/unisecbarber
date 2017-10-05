@@ -8,7 +8,6 @@ See the file 'doc/LICENSE' for the license information
 
 '''
 
-import multiprocessing
 import os
 import re
 import Queue
@@ -25,7 +24,13 @@ from models import (Host,
         Command
         )
 from modelactions import modelactions
-from common import merge_two_dicts
+from common import (factory,
+                    get_host_properties,
+                    get_interface_properties,
+                    get_service_properties,
+                    get_vuln_properties,
+                    get_vuln_web_properties
+                    )
 
 from config.configuration import getInstanceConfiguration
 CONF = getInstanceConfiguration()
@@ -52,8 +57,9 @@ class PluginBase(object):
         self._new_elems = []
         self._pending_actions = Queue.Queue()
         self._settings = {}
-        
-        self.parsed_objs = {}
+
+        self._obj_map = {}
+        self.root = {}
 
         self.debug = False
 
@@ -134,39 +140,31 @@ class PluginBase(object):
         """
         return None
 
-    def __addToList(self, obj):
+    def __addPendingAction(self, *args):
         """
         Adds a new pending action to the queue
         Action is build with generic args tuple.
         The caller of this function has to build the action in the right
         way since no checks are preformed over args
         """
-        if obj['type'] == Host.class_signature:
-            self.parsed_objs[obj['name']] = obj
-        elif obj['type'] == Interface.class_signature:
-            host = obj['host_id']
-            del obj['host_id']
-            if not obj['type'] in self.parsed_objs[host['name']]:
-                self.parsed_objs[host['name']][obj['type']] = {}
-            self.parsed_objs[host['name']][obj['type']][obj['mac']] = obj
-        elif obj['type'] == Service.class_signature:
-            iface = obj['interface_id']
-            del obj['interface_id']
-            if not obj['type'] in self.parsed_objs[iface['name']][Interface.class_signature][iface['mac']]:
-                self.parsed_objs[iface['name']][Interface.class_signature][iface['mac']][obj['type']] = {}
-            hsh = hashlib.md5(json.dumps(obj, sort_keys=True)).hexdigest()
-            self.parsed_objs[iface['name']][Interface.class_signature][iface['mac']][obj['type']][hsh] = obj
-
+        self._pending_actions.put(args)
 
     def createAndAddHost(self, name, os="unknown"):
-        obj =  {
-            'type': Host.class_signature,
-            'name': name,
-            'os': os
-        }
+        host_obj = factory.createModelObject(
+            Host.class_signature,
+            name, os=os, parent_id=None)
 
-        self.__addToList(obj)
-        return obj
+        host_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDHOST, host_obj)
+        
+        if not Host.class_signature in self.root:
+            self.root[Host.class_signature] = []
+
+        host_dict = get_host_properties(host_obj)
+        self.root[Host.class_signature].append(host_dict)
+        self._obj_map[host_obj.getID()] = host_dict
+        
+        return host_obj.getID()
 
     def createAndAddInterface(
         self, host_id, name="", mac="00:00:00:00:00:00",
@@ -181,24 +179,27 @@ class PluginBase(object):
         if isinstance(hostname_resolution, str):
             hostname_resolution = [hostname_resolution]
 
-        obj = {
-            'type': Interface.class_signature,
-            'name': name,
-            'mac': mac,
-            'ipv4_address': ipv4_address,
-            'ipv4_mask': ipv4_mask,
-            'ipv4_gateway': ipv4_gateway,
-            'ipv4_dns': ipv4_dns,
-            'ipv6_address': ipv6_address,
-            'ipv6_prefix': ipv6_prefix,
-            'ipv6_gateway': ipv6_gateway,
-            'ipv6_dns': ipv6_dns,
-            'network_segment': network_segment,
-            'host_id': host_id
-        }
+        int_obj = factory.createModelObject(
+            Interface.class_signature,
+            name, mac=mac, ipv4_address=ipv4_address,
+            ipv4_mask=ipv4_mask, ipv4_gateway=ipv4_gateway, ipv4_dns=ipv4_dns,
+            ipv6_address=ipv6_address, ipv6_prefix=ipv6_prefix,
+            ipv6_gateway=ipv6_gateway, ipv6_dns=ipv6_dns,
+            network_segment=network_segment,
+            hostnames=hostname_resolution, parent_id=host_id)
 
-        self.__addToList(obj)
-        return obj
+        int_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDINTERFACE, host_id, int_obj)
+        
+        int_dict = get_interface_properties(int_obj)
+        self._obj_map[int_obj.getID()] = int_dict
+        
+        parent_dict = self._obj_map[host_id]
+        if not Interface.class_signature in parent_dict:
+            parent_dict[Interface.class_signature] = []
+        parent_dict[Interface.class_signature].append(int_dict)
+
+        return int_obj.getID()
 
 
     def createAndAddServiceToInterface(self, host_id, interface_id, name,
@@ -206,132 +207,162 @@ class PluginBase(object):
                                        status="running", version="unknown",
                                        description=""):
 
-        obj = {
-            'type': Service.class_signature,
-            'name': name,
-            'protocol': protocol,
-            'ports': ports,
-            'status': status,
-            'version': version,
-            'description': description,
-            'interface_id': interface_id
-        }
+        serv_obj = factory.createModelObject(
+            Service.class_signature,
+            name, protocol=protocol, ports=ports, status=status,
+            version=version, description=description, parent_id=interface_id)
 
-        self.__addToList(obj)
-        return obj
+        serv_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDSERVICEINT, host_id, interface_id, serv_obj)
+
+        serv_dict = get_service_properties(serv_obj)
+        self._obj_map[serv_obj.getID()] = serv_dict
+        
+        parent_dict = self._obj_map[interface_id]
+        if not Service.class_signature in parent_dict:
+            parent_dict[Service.class_signature] = []
+        parent_dict[Service.class_signature].append(serv_dict)
+
+        return serv_obj.getID()
 
     def createAndAddVulnToHost(self, host_id, name, desc="", ref=[],
                                severity="", resolution=""):
 
-        # vuln_obj = model.common.factory.createModelObject(
-        #     Vuln.class_signature,
-        #     name, desc=desc, refs=ref, severity=severity, resolution=resolution,
-        #     confirmed=False, parent_id=host_id)
+        vuln_obj = factory.createModelObject(
+            Vuln.class_signature,
+            name, desc=desc, refs=ref, severity=severity, resolution=resolution,
+            confirmed=False, parent_id=host_id)
 
-        # vuln_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDVULNHOST, host_id, vuln_obj)
-        # return vuln_obj.getID()
-        pass
+        vuln_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDVULNHOST, host_id, vuln_obj)
+
+        vuln_dict = get_vuln_properties(vuln_obj)
+        self._obj_map[vuln_obj.getID()] = vuln_dict
+        
+        parent_dict = self._obj_map[host_id]
+        if not Vuln.class_signature in parent_dict:
+            parent_dict[Vuln.class_signature] = []
+        parent_dict[Vuln.class_signature].append(vuln_dict)
+        return vuln_obj.getID()
 
     def createAndAddVulnToInterface(self, host_id, interface_id, name,
                                     desc="", ref=[], severity="",
                                     resolution=""):
 
-        # vuln_obj = model.common.factory.createModelObject(
-        #     Vuln.class_signature,
-        #     name, desc=desc, refs=ref, severity=severity, resolution=resolution,
-        #     confirmed=False, parent_id=interface_id)
+        vuln_obj = factory.createModelObject(
+            Vuln.class_signature,
+            name, desc=desc, refs=ref, severity=severity, resolution=resolution,
+            confirmed=False, parent_id=interface_id)
 
-        # vuln_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDVULNINT, host_id, interface_id, vuln_obj)
-        # return vuln_obj.getID()
-        pass
+        vuln_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDVULNINT, host_id, interface_id, vuln_obj)
+
+        vuln_dict = get_vuln_properties(vuln_obj)
+        self._obj_map[vuln_obj.getID()] = vuln_dict
+        
+        parent_dict = self._obj_map[interface_id]
+        if not Vuln.class_signature in parent_dict:
+            parent_dict[Vuln.class_signature] = []
+        parent_dict[Vuln.class_signature].append(vuln_dict)
+
+        return vuln_obj.getID()
 
     def createAndAddVulnToService(self, host_id, service_id, name, desc="",
                                   ref=[], severity="", resolution=""):
 
-        # vuln_obj = model.common.factory.createModelObject(
-        #     Vuln.class_signature,
-        #     name, desc=desc, refs=ref, severity=severity, resolution=resolution,
-        #     confirmed=False, parent_id=service_id)
+        vuln_obj = factory.createModelObject(
+            Vuln.class_signature,
+            name, desc=desc, refs=ref, severity=severity, resolution=resolution,
+            confirmed=False, parent_id=service_id)
 
-        # vuln_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDVULNSRV, host_id, service_id, vuln_obj)
-        # return vuln_obj.getID()
-        pass
+        vuln_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDVULNSRV, host_id, service_id, vuln_obj)
+
+        vuln_dict = get_vuln_properties(vuln_obj)
+        self._obj_map[vuln_obj.getID()] = vuln_dict
+        
+        parent_dict = self._obj_map[service_id]
+        if not Vuln.class_signature in parent_dict:
+            parent_dict[Vuln.class_signature] = []
+        parent_dict[Vuln.class_signature].append(vuln_dict)
+
+        return vuln_obj.getID()
 
     def createAndAddVulnWebToService(self, host_id, service_id, name, desc="",
                                      ref=[], severity="", resolution="",
                                      website="", path="", request="",
                                      response="", method="", pname="",
                                      params="", query="", category=""):
-        # vulnweb_obj = model.common.factory.createModelObject(
-        #     VulnWeb.class_signature,
-        #     name, desc=desc, refs=ref, severity=severity, resolution=resolution,
-        #     website=website, path=path, request=request, response=response,
-        #     method=method, pname=pname, params=params, query=query,
-        #     category=category, confirmed=False, parent_id=service_id)
+        vulnweb_obj = factory.createModelObject(
+            VulnWeb.class_signature,
+            name, desc=desc, refs=ref, severity=severity, resolution=resolution,
+            website=website, path=path, request=request, response=response,
+            method=method, pname=pname, params=params, query=query,
+            category=category, confirmed=False, parent_id=service_id)
 
-        # vulnweb_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDVULNWEBSRV, host_id, service_id, vulnweb_obj)
-        # return vulnweb_obj.getID()
-        pass
+        vulnweb_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDVULNWEBSRV, host_id, service_id, vulnweb_obj)
+
+        vulnweb_dict = get_vuln_web_properties(vulnweb_obj)
+        self._obj_map[vulnweb_obj.getID()] = vulnweb_dict
+        
+        parent_dict = self._obj_map[service_id]
+        if not VulnWeb.class_signature in parent_dict:
+            parent_dict[VulnWeb.class_signature] = []
+        parent_dict[VulnWeb.class_signature].append(vulnweb_dict)
+
+        return vulnweb_obj.getID()
 
     def createAndAddNoteToHost(self, host_id, name, text):
 
-        # note_obj = model.common.factory.createModelObject(
-        #     Note.class_signature,
-        #     name, text=text, parent_id=host_id)
+        note_obj = factory.createModelObject(
+            Note.class_signature,
+            name, text=text, parent_id=host_id)
 
-        # note_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDNOTEHOST, host_id, note_obj)
-        # return note_obj.getID()
-        pass
+        note_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDNOTEHOST, host_id, note_obj)
+        return note_obj.getID()
 
     def createAndAddNoteToInterface(self, host_id, interface_id, name, text):
 
-        # note_obj = model.common.factory.createModelObject(
-        #     Note.class_signature,
-        #     name, text=text, parent_id=interface_id)
+        note_obj = factory.createModelObject(
+            Note.class_signature,
+            name, text=text, parent_id=interface_id)
 
-        # note_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDNOTEINT, host_id, interface_id, note_obj)
-        # return note_obj.getID()
-        pass
+        note_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDNOTEINT, host_id, interface_id, note_obj)
+        return note_obj.getID()
 
     def createAndAddNoteToService(self, host_id, service_id, name, text):
 
-        # note_obj = model.common.factory.createModelObject(
-        #     Note.class_signature,
-        #     name, text=text, parent_id=service_id)
+        note_obj = factory.createModelObject(
+            Note.class_signature,
+            name, text=text, parent_id=service_id)
 
-        # note_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDNOTESRV, host_id, service_id, note_obj)
-        # return note_obj.getID()
-        pass
+        note_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDNOTESRV, host_id, service_id, note_obj)
+        return note_obj.getID()
 
     def createAndAddNoteToNote(self, host_id, service_id, note_id, name, text):
 
-        # note_obj = model.common.factory.createModelObject(
-        #     Note.class_signature,
-        #     name, text=text, parent_id=note_id)
+        note_obj = factory.createModelObject(
+            Note.class_signature,
+            name, text=text, parent_id=note_id)
 
-        # note_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDNOTENOTE, host_id, service_id, note_id, note_obj)
-        # return note_obj.getID()
-        pass
+        note_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDNOTENOTE, host_id, service_id, note_id, note_obj)
+        return note_obj.getID()
 
     def createAndAddCredToService(self, host_id, service_id, username,
                                   password):
 
-        # cred_obj = model.common.factory.createModelObject(
-        #     Credential.class_signature,
-        #     username, password=password, parent_id=service_id)
+        cred_obj = factory.createModelObject(
+            Credential.class_signature,
+            username, password=password, parent_id=service_id)
 
-        # cred_obj._metadata.creator = self.id
-        # self.__addPendingAction(modelactions.ADDCREDSRV, host_id, service_id, cred_obj)
-        # return cred_obj.getID()
-        pass
+        cred_obj._metadata.creator = self.id
+        self.__addPendingAction(modelactions.ADDCREDSRV, host_id, service_id, cred_obj)
+        return cred_obj.getID()
 
 
 class PluginTerminalOutput(PluginBase):

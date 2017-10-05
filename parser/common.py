@@ -191,7 +191,7 @@ class ModelObjectFactory(object):
         parent_id should only be None if classname is 'Host' or maybe 'Note' or 'Credential'.
         """
         if not workspace_name:
-            workspace_name = CONF.getLastWorkspace()
+            workspace_name = 'sectoolparser'
         if classname in self._registered_objects:
             if object_name is not None:
                 objargs['name'] = object_name

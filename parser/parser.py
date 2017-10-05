@@ -19,6 +19,7 @@ from config.configuration import getInstanceConfiguration
 from utils.logs import getLogger, setUpLogger
 from common import factory
 import models
+import encoders
 
 
 CONF = getInstanceConfiguration()

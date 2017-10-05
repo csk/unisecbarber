@@ -124,13 +124,10 @@ class PluginController(object):
         plugin, cmd_info = self._active_plugins.get(pid)
         plugin.processOutput(term_output)
 
-        objs = plugin.parsed_objs
-
         cmd_info['duration'] = time.time() - cmd_info['itime']
 
-        # self.processOutput(plugin, term_output, cmd_info.getID())
         del self._active_plugins[pid]
-        return objs
+        return plugin.root
 
 
     def clearActivePlugins(self):
