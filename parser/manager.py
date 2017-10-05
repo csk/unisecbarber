@@ -14,12 +14,12 @@ import re
 import sys
 import traceback
 
-from plugins.controller import PluginController
+from controller import PluginController
+
 from config.configuration import getInstanceConfiguration
 from utils.logs import getLogger
 
 CONF = getInstanceConfiguration()
-
 
 class PluginManager(object):
     def __init__(self, plugin_repo_path):
@@ -95,6 +95,7 @@ class PluginManager(object):
         dir_name_regexp = re.compile(r"^[\d\w\-\_]+$")
         for name in os.listdir(plugin_repo_path):
             if dir_name_regexp.match(name):
+                getLogger(self).info("Loading '%s' ... " % name)
                 try:
                     module_path = os.path.join(plugin_repo_path, name)
                     sys.path.append(module_path)

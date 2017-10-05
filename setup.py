@@ -16,7 +16,7 @@ setup(
     version='0.1.0',
     description='Security Tools Parser',
     long_description=readme,
-    author='Conrad Stein K§',
+    author='Conrad Stein K',
     author_email='conradsteink@gmail.com',
     url='',
     license=license,

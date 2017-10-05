@@ -13,11 +13,7 @@ import os
 import re
 import Queue
 import traceback
-
-import model.api
-import model.common
-from model.common import factory
-from persistence.server.models import (Host,
+from models import (Host,
         Interface,
         Service,
         Vuln,
@@ -26,11 +22,15 @@ from persistence.server.models import (Host,
         Note,
         Command
         )
-from plugins.modelactions import modelactions
-
+from modelactions import modelactions
 from config.configuration import getInstanceConfiguration
 CONF = getInstanceConfiguration()
 
+
+
+LOG_PREFIX = {}
+LOG_PREFIX['DEBUG'] = '[+]'
+LOG_PREFIX['INFO'] = '[*]'
 
 class PluginBase(object):
     # TODO: Add class generic identifier
@@ -38,11 +38,10 @@ class PluginBase(object):
 
     def __init__(self):
 
-        self.data_path = CONF.getDataPath()
-        self.persistence_path = CONF.getPersistencePath()
         # Must be unique. Check that there is not
         # an existant plugin with the same id.
         # TODO: Make script that list current ids.
+        self.data_path = CONF.getDataPath()
         self.id = None
         self._rid = id(self)
         self.version = None
@@ -55,6 +54,10 @@ class PluginBase(object):
         self._new_elems = []
         self._pending_actions = Queue.Queue()
         self._settings = {}
+        
+        self.parsed_objs = []
+
+        self.debug = False
 
     def has_custom_output(self):
         return bool(self._output_file_path)
@@ -67,7 +70,7 @@ class PluginBase(object):
             yield param, value
 
     def get_ws(self):
-        return CONF.getLastWorkspace()
+        return '__sectool__'
 
     def getSetting(self, name):
         setting_type, value = self._settings[name]
@@ -142,15 +145,31 @@ class PluginBase(object):
         """
         self._pending_actions.put(args)
 
+    def __addToList(self, obj):
+        """
+        Adds a new pending action to the queue
+        Action is build with generic args tuple.
+        The caller of this function has to build the action in the right
+        way since no checks are preformed over args
+        """
+        self.parsed_objs.append(obj)
+
     def createAndAddHost(self, name, os="unknown"):
+        obj =  {
+            'type': Host.class_signature,
+            'name': name,
+            'os': os
+        }
 
-        host_obj = factory.createModelObject(
-            Host.class_signature,
-            name, os=os, parent_id=None)
-
-        host_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDHOST, host_obj)
-        return host_obj.getID()
+        if self.debug:
+            msg="""
+            Host.class_signature: '%s'
+            name: '%s'
+            os: '%s'
+            """ % (Host.class_signature, name, os)
+            self.log("[%s] %s" % (modelactions.ADDHOST, msg), 'DEBUG')
+        self.__addToList(obj)
+        return obj
 
     def createAndAddInterface(
         self, host_id, name="", mac="00:00:00:00:00:00",
@@ -165,142 +184,181 @@ class PluginBase(object):
         if isinstance(hostname_resolution, str):
             hostname_resolution = [hostname_resolution]
 
-        int_obj = model.common.factory.createModelObject(
-            Interface.class_signature,
-            name, mac=mac, ipv4_address=ipv4_address,
-            ipv4_mask=ipv4_mask, ipv4_gateway=ipv4_gateway, ipv4_dns=ipv4_dns,
-            ipv6_address=ipv6_address, ipv6_prefix=ipv6_prefix,
-            ipv6_gateway=ipv6_gateway, ipv6_dns=ipv6_dns,
-            network_segment=network_segment,
-            hostnames=hostname_resolution, parent_id=host_id)
+        obj = {
+            'type': Interface.class_signature,
+            'name': name,
+            'mac': mac,
+            'ipv4_address': ipv4_address,
+            'ipv4_mask': ipv4_mask,
+            'ipv4_gateway': ipv4_gateway,
+            'ipv4_dns': ipv4_dns,
+            'ipv6_address': ipv6_address,
+            'ipv6_prefix': ipv6_prefix,
+            'ipv6_gateway': ipv6_gateway,
+            'ipv6_dns': ipv6_dns,
+            'network_segment': network_segment
+        }
 
-        int_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDINTERFACE, host_id, int_obj)
-        return int_obj.getID()
+        if self.debug:
+            msg="""
+            Interface.class_signature: '%s'
+            name: '%s'
+            mac: '%s'
+            ipv4_address: '%s'
+            ipv4_mask: '%s'
+            ipv4_gateway: '%s'
+            ipv4_dns: '%s'
+            ipv6_address: '%s'
+            ipv6_mask: '%s'
+            ipv6_gateway: '%s'
+            ipv6_dns: '%s'
+            network_segment: '%s'
+            """ % (Interface.class_signature,
+                name, mac, ipv4_address,
+                ipv4_mask, ipv4_gateway, ipv4_dns,
+                ipv6_address, ipv6_prefix,
+                ipv6_gateway, ipv6_dns,
+                network_segment)
+                
+
+            self.log("[%s] %s" % (modelactions.ADDINTERFACE, msg))
+        self.__addToList(obj)
+        return obj
+
 
     def createAndAddServiceToInterface(self, host_id, interface_id, name,
                                        protocol="tcp?", ports=[],
                                        status="running", version="unknown",
                                        description=""):
 
-        serv_obj = model.common.factory.createModelObject(
-            Service.class_signature,
-            name, protocol=protocol, ports=ports, status=status,
-            version=version, description=description, parent_id=interface_id)
+        # serv_obj = model.common.factory.createModelObject(
+        #     Service.class_signature,
+        #     name, protocol=protocol, ports=ports, status=status,
+        #     version=version, description=description, parent_id=interface_id)
 
-        serv_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDSERVICEINT, host_id, interface_id, serv_obj)
-        return serv_obj.getID()
+        # serv_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDSERVICEINT, host_id, interface_id, serv_obj)
+        # return serv_obj.getID()
+        pass
 
     def createAndAddVulnToHost(self, host_id, name, desc="", ref=[],
                                severity="", resolution=""):
 
-        vuln_obj = model.common.factory.createModelObject(
-            Vuln.class_signature,
-            name, desc=desc, refs=ref, severity=severity, resolution=resolution,
-            confirmed=False, parent_id=host_id)
+        # vuln_obj = model.common.factory.createModelObject(
+        #     Vuln.class_signature,
+        #     name, desc=desc, refs=ref, severity=severity, resolution=resolution,
+        #     confirmed=False, parent_id=host_id)
 
-        vuln_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDVULNHOST, host_id, vuln_obj)
-        return vuln_obj.getID()
+        # vuln_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDVULNHOST, host_id, vuln_obj)
+        # return vuln_obj.getID()
+        pass
 
     def createAndAddVulnToInterface(self, host_id, interface_id, name,
                                     desc="", ref=[], severity="",
                                     resolution=""):
 
-        vuln_obj = model.common.factory.createModelObject(
-            Vuln.class_signature,
-            name, desc=desc, refs=ref, severity=severity, resolution=resolution,
-            confirmed=False, parent_id=interface_id)
+        # vuln_obj = model.common.factory.createModelObject(
+        #     Vuln.class_signature,
+        #     name, desc=desc, refs=ref, severity=severity, resolution=resolution,
+        #     confirmed=False, parent_id=interface_id)
 
-        vuln_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDVULNINT, host_id, interface_id, vuln_obj)
-        return vuln_obj.getID()
+        # vuln_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDVULNINT, host_id, interface_id, vuln_obj)
+        # return vuln_obj.getID()
+        pass
 
     def createAndAddVulnToService(self, host_id, service_id, name, desc="",
                                   ref=[], severity="", resolution=""):
 
-        vuln_obj = model.common.factory.createModelObject(
-            Vuln.class_signature,
-            name, desc=desc, refs=ref, severity=severity, resolution=resolution,
-            confirmed=False, parent_id=service_id)
+        # vuln_obj = model.common.factory.createModelObject(
+        #     Vuln.class_signature,
+        #     name, desc=desc, refs=ref, severity=severity, resolution=resolution,
+        #     confirmed=False, parent_id=service_id)
 
-        vuln_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDVULNSRV, host_id, service_id, vuln_obj)
-        return vuln_obj.getID()
+        # vuln_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDVULNSRV, host_id, service_id, vuln_obj)
+        # return vuln_obj.getID()
+        pass
 
     def createAndAddVulnWebToService(self, host_id, service_id, name, desc="",
                                      ref=[], severity="", resolution="",
                                      website="", path="", request="",
                                      response="", method="", pname="",
                                      params="", query="", category=""):
-        vulnweb_obj = model.common.factory.createModelObject(
-            VulnWeb.class_signature,
-            name, desc=desc, refs=ref, severity=severity, resolution=resolution,
-            website=website, path=path, request=request, response=response,
-            method=method, pname=pname, params=params, query=query,
-            category=category, confirmed=False, parent_id=service_id)
+        # vulnweb_obj = model.common.factory.createModelObject(
+        #     VulnWeb.class_signature,
+        #     name, desc=desc, refs=ref, severity=severity, resolution=resolution,
+        #     website=website, path=path, request=request, response=response,
+        #     method=method, pname=pname, params=params, query=query,
+        #     category=category, confirmed=False, parent_id=service_id)
 
-        vulnweb_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDVULNWEBSRV, host_id, service_id, vulnweb_obj)
-        return vulnweb_obj.getID()
+        # vulnweb_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDVULNWEBSRV, host_id, service_id, vulnweb_obj)
+        # return vulnweb_obj.getID()
+        pass
 
     def createAndAddNoteToHost(self, host_id, name, text):
 
-        note_obj = model.common.factory.createModelObject(
-            Note.class_signature,
-            name, text=text, parent_id=host_id)
+        # note_obj = model.common.factory.createModelObject(
+        #     Note.class_signature,
+        #     name, text=text, parent_id=host_id)
 
-        note_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDNOTEHOST, host_id, note_obj)
-        return note_obj.getID()
+        # note_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDNOTEHOST, host_id, note_obj)
+        # return note_obj.getID()
+        pass
 
     def createAndAddNoteToInterface(self, host_id, interface_id, name, text):
 
-        note_obj = model.common.factory.createModelObject(
-            Note.class_signature,
-            name, text=text, parent_id=interface_id)
+        # note_obj = model.common.factory.createModelObject(
+        #     Note.class_signature,
+        #     name, text=text, parent_id=interface_id)
 
-        note_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDNOTEINT, host_id, interface_id, note_obj)
-        return note_obj.getID()
+        # note_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDNOTEINT, host_id, interface_id, note_obj)
+        # return note_obj.getID()
+        pass
 
     def createAndAddNoteToService(self, host_id, service_id, name, text):
 
-        note_obj = model.common.factory.createModelObject(
-            Note.class_signature,
-            name, text=text, parent_id=service_id)
+        # note_obj = model.common.factory.createModelObject(
+        #     Note.class_signature,
+        #     name, text=text, parent_id=service_id)
 
-        note_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDNOTESRV, host_id, service_id, note_obj)
-        return note_obj.getID()
+        # note_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDNOTESRV, host_id, service_id, note_obj)
+        # return note_obj.getID()
+        pass
 
     def createAndAddNoteToNote(self, host_id, service_id, note_id, name, text):
 
-        note_obj = model.common.factory.createModelObject(
-            Note.class_signature,
-            name, text=text, parent_id=note_id)
+        # note_obj = model.common.factory.createModelObject(
+        #     Note.class_signature,
+        #     name, text=text, parent_id=note_id)
 
-        note_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDNOTENOTE, host_id, service_id, note_id, note_obj)
-        return note_obj.getID()
+        # note_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDNOTENOTE, host_id, service_id, note_id, note_obj)
+        # return note_obj.getID()
+        pass
 
     def createAndAddCredToService(self, host_id, service_id, username,
                                   password):
 
-        cred_obj = model.common.factory.createModelObject(
-            Credential.class_signature,
-            username, password=password, parent_id=service_id)
+        # cred_obj = model.common.factory.createModelObject(
+        #     Credential.class_signature,
+        #     username, password=password, parent_id=service_id)
 
-        cred_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDCREDSRV, host_id, service_id, cred_obj)
-        return cred_obj.getID()
+        # cred_obj._metadata.creator = self.id
+        # self.__addPendingAction(modelactions.ADDCREDSRV, host_id, service_id, cred_obj)
+        # return cred_obj.getID()
+        pass
 
     def log(self, msg, level='INFO'):
-        self.__addPendingAction(modelactions.LOG, msg, level)
+        print "%s %s" % (LOG_PREFIX[level], msg)
 
     def devlog(self, msg):
-        self.__addPendingAction(modelactions.DEVLOG, msg)
+        print "%s %s" % (LOG_PREFIX[level], msg)
 
 
 class PluginTerminalOutput(PluginBase):
@@ -331,47 +389,47 @@ class PluginProcess(multiprocessing.Process):
 
     def run(self):
         proc_name = self.name
-        model.api.devlog("-" * 40)
-        model.api.devlog("proc_name = %s" % proc_name)
-        model.api.devlog("Starting run method on PluginProcess")
-        model.api.devlog('parent process: %s' % os.getppid())
-        model.api.devlog('process id: %s' % os.getpid())
-        model.api.devlog("-" * 40)
+        getLogger(self).debug("-" * 40)
+        getLogger(self).debug("proc_name = %s" % proc_name)
+        getLogger(self).debug("Starting run method on PluginProcess")
+        getLogger(self).debug('parent process: %s' % os.getppid())
+        getLogger(self).debug('process id: %s' % os.getpid())
+        getLogger(self).debug("-" * 40)
         done = False
         while not done:
             output = self.output_queue.get()
             if output is not None:
-                model.api.devlog('%s: %s' % (proc_name, "New Output"))
+                getLogger(self).debug('%s: %s' % (proc_name, "New Output"))
                 try:
                     if self.isReport:
                         self.plugin.processReport(output)
                     else:
                         self.plugin.processOutput(output)
                 except Exception:
-                    model.api.devlog("Plugin raised an exception:")
-                    model.api.devlog(traceback.format_exc())
+                    getLogger(self).debug("Plugin raised an exception:")
+                    getLogger(self).debug(traceback.format_exc())
                 else:
                     while True:
                         try:
                             self.new_elem_queue.put(
                                 self.plugin._pending_actions.get(block=False))
                         except Queue.Empty:
-                            model.api.devlog(
+                            getLogger(self).debug(
                                 ("PluginProcess run _pending_actions"
                                  " queue Empty. Breaking loop"))
                             break
                         except Exception:
-                            model.api.devlog(
+                            getLogger(self).debug(
                                 ("PluginProcess run getting from "
                                  "_pending_action queue - something strange "
                                  "happened... unhandled exception?"))
-                            model.api.devlog(traceback.format_exc())
+                            getLogger(self).debug(traceback.format_exc())
                             break
 
             else:
 
                 done = True
-                model.api.devlog('%s: Exiting' % proc_name)
+                getLogger(self).debug('%s: Exiting' % proc_name)
 
             self.output_queue.task_done()
         self.new_elem_queue.put(None)

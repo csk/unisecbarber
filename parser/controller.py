@@ -16,31 +16,20 @@ import Queue
 import shlex
 import time
 
-from plugins.plugin import PluginProcess
-import model.api
-from model.commands_history import CommandRunInformation
-from plugins.modelactions import modelactions
+from plugin import PluginProcess
+from modelactions import modelactions
 from utils.logs import getLogger
-
-from config.globals import (
-    CONST_FARADAY_HOME_PATH,
-    CONST_FARADAY_ZSH_OUTPUT_PATH)
-
 
 class PluginController(object):
     """
     TODO: Doc string.
     """
-    def __init__(self, id, plugin_manager, mapper_manager):
+    def __init__(self, id, plugin_manager):
         self.plugin_manager = plugin_manager
         self._plugins = plugin_manager.getPlugins()
         self.id = id
         self._actionDispatcher = None
-        self._setupActionDispatcher()
-        self._mapper_manager = mapper_manager
-        self.output_path = os.path.join(
-            os.path.expanduser(CONST_FARADAY_HOME_PATH),
-            CONST_FARADAY_ZSH_OUTPUT_PATH)
+        self.output_path = '.'
         self._active_plugins = {}
         self.plugin_sets = {}
         self.plugin_manager.addController(self, self.id)
@@ -156,32 +145,7 @@ class PluginController(object):
             (action, str(parameters)))
         self._actionDispatcher[action](*parameters)
 
-    def _setupActionDispatcher(self):
-        self._actionDispatcher = {
-            modelactions.ADDHOST: model.api.addHost,
-            modelactions.ADDINTERFACE: model.api.addInterface,
-            modelactions.ADDSERVICEINT: model.api.addServiceToInterface,
-            modelactions.DELSERVICEINT: model.api.delServiceFromInterface,
-            #Vulnerability
-            modelactions.ADDVULNINT: model.api.addVulnToInterface,
-            modelactions.ADDVULNHOST: model.api.addVulnToHost,
-            modelactions.ADDVULNSRV: model.api.addVulnToService,
-            #VulnWeb
-            modelactions.ADDVULNWEBSRV: model.api.addVulnWebToService,
-            #Note
-            modelactions.ADDNOTEINT: model.api.addNoteToInterface,
-            modelactions.ADDNOTEHOST: model.api.addNoteToHost,
-            modelactions.ADDNOTESRV: model.api.addNoteToService,
-            modelactions.ADDNOTENOTE: model.api.addNoteToNote,
-            #Creds
-            modelactions.ADDCREDSRV:  model.api.addCredToService,
-            #LOG
-            modelactions.LOG: model.api.log,
-            modelactions.DEVLOG: model.api.devlog,
-            # Plugin state
-            modelactions.PLUGINSTART: model.api.pluginStart,
-            modelactions.PLUGINEND: model.api.pluginEnd
-        }
+    
 
     def updatePluginSettings(self, plugin_id, new_settings):
         for plugin_set in self.plugin_sets.values():
@@ -206,20 +170,17 @@ class PluginController(object):
         if plugin:
             modified_cmd_string = plugin.processCommandString("", pwd, cmd)
             if not self._is_command_malformed(cmd, modified_cmd_string):
-
-                cmd_info = CommandRunInformation(
-                    **{'workspace': model.api.getActiveWorkspace().name,
+                cmd_info = {
                         'itime': time.time(),
                         'command': cmd.split()[0],
-                        'params': ' '.join(cmd.split()[1:])})
-                self._mapper_manager.save(cmd_info)
+                        'params': ' '.join(cmd.split()[1:])
+                        }
                 self._active_plugins[pid] = plugin, cmd_info
 
                 return plugin.id, modified_cmd_string
-
         return None, None
 
-    def onCommandFinished(self, pid, exit_code, term_output):
+    def parseCommand(self, pid, exit_code, term_output):
 
         if pid not in self._active_plugins.keys():
             return False
@@ -228,30 +189,16 @@ class PluginController(object):
             return False
 
         plugin, cmd_info = self._active_plugins.get(pid)
+        plugin.processOutput(term_output)
 
-        cmd_info.duration = time.time() - cmd_info.itime
-        self._mapper_manager.update(cmd_info)
+        objs = plugin.parsed_objs
 
-        self.processOutput(plugin, term_output, cmd_info.getID()
-)
+        cmd_info['duration'] = time.time() - cmd_info['itime']
+
+        # self.processOutput(plugin, term_output, cmd_info.getID())
         del self._active_plugins[pid]
-        return True
+        return objs
 
-    def processReport(self, plugin, filepath):
-
-        cmd_info = CommandRunInformation(
-            **{'workspace': model.api.getActiveWorkspace().name,
-                'itime': time.time(),
-                'command': 'Import %s:' % plugin,
-                'params': filepath})
-        self._mapper_manager.save(cmd_info)
-
-        if plugin in self._plugins:
-            self.processOutput(self._plugins[plugin], filepath, cmd_info.getID(), True )
-            cmd_info.duration = time.time() - cmd_info.itime
-            self._mapper_manager.update(cmd_info)
-            return True
-        return False
 
     def clearActivePlugins(self):
         self._active_plugins = {}
