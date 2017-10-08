@@ -54,6 +54,10 @@ class ResultBuilder(object):
                     parent_obj.add_vuln(obj)
                 if obj.class_signature == 'VulnWeb':
                     parent_obj.add_vuln_web(obj)
+                if obj.class_signature == 'Note':
+                    parent_obj.add_note(obj)
+                if obj.class_signature == 'Cred':
+                    parent_obj.add_cred(obj)
         else:
             if obj.class_signature == 'Host':
                 print "Adding host"

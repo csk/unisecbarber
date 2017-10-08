@@ -24,13 +24,7 @@ from models import (Result,
         Note        )
 from modelactions import modelactions
 from result import ResultBuilder
-from common import (factory,
-                    get_host_properties,
-                    get_interface_properties,
-                    get_service_properties,
-                    get_vuln_properties,
-                    get_vuln_web_properties
-                    )
+from common import factory
 
 from config.configuration import getInstanceConfiguration
 CONF = getInstanceConfiguration()

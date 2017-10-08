@@ -13,20 +13,13 @@ from time import time
 import traceback
 from threading import Lock
 
-from common import (force_unique,
-                      get_hash,
-                      get_host_properties,
-                      get_interface_properties,
-                      get_service_properties,
-                      get_vuln_properties,
-                      get_vuln_web_properties,
-                      get_note_properties,
-                      get_credential_properties,
-                      get_command_properties)
+from common import get_hash
 
 from functools import wraps
 
 from utils.logs import getLogger
+
+
 
 
 def log(msg ,level = "INFO"):
@@ -52,6 +45,11 @@ def devlog(msg):
     """
     getLogger().debug(msg)
 
+def merge_two_dicts(x, y):
+    """Given two dicts, merge them into a new dict as a shallow copy."""
+    z = x.copy()
+    z.update(y)
+    return z
 
 
 def _flatten_dictionary(dictionary):
@@ -134,7 +132,13 @@ class ModelBase(object):
 
     def getName(self): return self.name
     def getMetadata(self): return self._metadata
-    def getDescription(self): return self.description
+
+    def jsonable(self):
+        return dict(
+            id=self.id,
+            name=self.name,
+            description=self.description
+            )
 
 
 class Host(ModelBase):
@@ -155,6 +159,7 @@ class Host(ModelBase):
         self.vulns = []
         self.creds = []
         self.services = []
+        self.notes = []
 
     def set_id(self, _):
         # empty arg so as to share same interface as other classes' generateID
@@ -178,18 +183,21 @@ class Host(ModelBase):
     def add_service(self, service):
         return self.services.append(service)
 
+    def add_note(self, note):
+        return self.notes.append(note)
+
     def jsonable(self):
-        return dict(id=self.id,
+        fields = dict(
                     default_gateway=self.default_gateway,
                     os=self.os,
                     vuln_amount=self.vuln_amount,
-                    name=self.name,
-                    description=self.description,
                     interfaces=self.interfaces,
                     vulns=self.vulns,
                     creds=self.creds,
-                    services=self.services
-                    )
+                    services=self.services,
+                    notes=self.notes)
+        return merge_two_dicts(super(Host,self).jsonable(),fields)
+
 
 
 
@@ -229,6 +237,7 @@ class Interface(ModelBase):
 
         self.services = []
         self.vulns = []
+        self.notes = []
 
     def set_id(self, parent_id):
         try:
@@ -251,25 +260,15 @@ class Interface(ModelBase):
 
     def __str__(self): return "{0}".format(self.name)
     def get_id(self): return self.id
-    def getHostnames(self): return self.hostnames
-    def getIPv4(self): return self.ipv4
-    def getIPv6(self): return self.ipv6
-    def getIPv4Address(self): return self.ipv4['address']
-    def getIPv4Mask(self): return self.ipv4['mask']
-    def getIPv4Gateway(self): return self.ipv4['gateway']
-    def getIPv4DNS(self): return self.ipv4['DNS']
-    def getIPv6Address(self): return self.ipv6['address']
-    def getIPv6Gateway(self): return self.ipv6['gateway']
-    def getIPv6DNS(self): return self.ipv6['DNS']
-    def getMAC(self): return self.mac
-    def getNetworkSegment(self): return self.network_segment
 
-    def getService(self, service_couch_id):
-        return get_service(self._workspace_name, service_couch_id)
-    def getAllServices(self):
-        return get_services(self._workspace_name, interface=self._server_id)
-    def getVulns(self):
-        return get_all_vulns(self._workspace_name, interfaceid=self._server_id)
+    def get_ipv4_address(self): return self.ipv4['address']
+    def get_ipv4_mask(self): return self.ipv4['mask']
+    def get_ipv4_gateway(self): return self.ipv4['gateway']
+    def get_ipv4_dns(self): return self.ipv4['DNS']
+
+    def get_ipv6_address(self): return self.ipv6['address']
+    def get_ipv6_gateway(self): return self.ipv6['gateway']
+    def get_ipv6_dns(self): return self.ipv6['DNS']
 
     def add_service(self, service):
         return self.services.append(service)
@@ -277,10 +276,11 @@ class Interface(ModelBase):
     def add_vuln(self, vuln):
         return self.vulns.append(vuln)
 
+    def add_note(self, note):
+        return self.notes.append(note)
+
     def jsonable(self):
-        return dict(id=self.id,
-                    name=self.name,
-                    description=self.description,
+        fields=dict(
                     hostnames=self.hostnames,
                     mac=self.mac,
                     ipv4=self.ipv4,
@@ -289,7 +289,11 @@ class Interface(ModelBase):
                     amount_ports_opened=self.amount_ports_opened,
                     amount_ports_closed=self.amount_ports_closed,
                     amount_ports_filtered=self.amount_ports_filtered,
+                    services=self.services,
+                    vulns=self.vulns,
+                    notes=self.notes,
             )
+        return merge_two_dicts(super(Interface,self).jsonable(),fields)
 
 
 class Service(ModelBase):
@@ -311,6 +315,7 @@ class Service(ModelBase):
         self.vulns = []
         self.vuln_webs = []
         self.creds = []
+        self.notes = []
 
     def set_id(self, parent_id):
         # TODO: str from list? ERROR MIGRATION NEEDED
@@ -320,10 +325,6 @@ class Service(ModelBase):
 
     def __str__(self): return "{0} ({1})".format(self.name, self.vuln_amount)
     def get_id(self): return self.id
-    def getStatus(self): return self.status
-    def getPorts(self): return self.ports  # this is a list of one element in faraday
-    def getVersion(self): return self.version
-    def getProtocol(self): return self.protocol
 
     def add_vuln(self, vuln):
         return self.vulns.append(vuln)
@@ -334,19 +335,21 @@ class Service(ModelBase):
     def add_cred(self, cred):
         return self.creds.append(cred)
 
+    def add_note(self, note):
+        return self.notes.append(note)
+
     def jsonable(self):
-        return dict(
-                    id=self.id,
-                    name=self.name,
-                    description=self.description,
+        fields = dict(
                     protocol=self.protocol,
                     ports=self.ports,
                     status=self.status,
                     version=self.version,
                     vulns=self.vulns,
                     vuln_webs=self.vuln_webs,
-                    creds=self.creds
+                    creds=self.creds,
+                    notes=self.notes
             )
+        return merge_two_dicts(super(Service,self).jsonable(),fields)
 
 class Vuln(ModelBase):
     """A simple Vuln class. Should implement all the methods of the
@@ -369,6 +372,8 @@ class Vuln(ModelBase):
         self.status = vuln.get('status', "opened")
         self.policyviolations = vuln.get('policyviolations', list())
 
+        self.notes = []
+
     def set_id(self, parent_id):
         ModelBase.set_id(self, parent_id, self.name, self.description)
 
@@ -376,7 +381,6 @@ class Vuln(ModelBase):
         # Transform all severities into lower strings
         severity = str(severity).lower()
         # If it has info, med, high, critical in it, standarized to it:
-
 
         def align_string_based_vulns(severity):
             severities = ['info','low', 'med', 'high', 'critical']
@@ -401,22 +405,12 @@ class Vuln(ModelBase):
         return severity
 
     def get_id(self): return self.id
-    def getDesc(self): return self.desc
-    def getData(self): return self.data
-    def getSeverity(self): return self.severity
-    def getRefs(self): return self.refs
-    def getConfirmed(self): return self.confirmed
-    def getResolution(self): return self.resolution
-    def getStatus(self): return self.status
-    def getPolicyViolations(self): return self.policyviolations
 
-    def setStatus(self, status):
-        self.status = status
+    def add_note(self, note):
+        return self.notes.append(note)
 
     def jsonable(self):
-        return dict(
-            id=self.id,
-            description=self.description,
+        fields = dict(
             desc=self.desc,
             data=self.data,
             severity=self.severity,
@@ -424,8 +418,10 @@ class Vuln(ModelBase):
             confirmed=self.confirmed,
             resolution=self.resolution,
             status=self.status,
-            policyviolations=self.policyviolations
+            policyviolations=self.policyviolations,
+            notes=self.notes
             )
+        return merge_two_dicts(super(Vuln,self).jsonable(),fields)
 
 class VulnWeb(Vuln):
     """A simple VulnWeb class. Should implement all the methods of the
@@ -445,7 +441,6 @@ class VulnWeb(Vuln):
         self.pname = vuln_web.get('pname')
         self.params = vuln_web.get('params')
         self.query = vuln_web.get('query')
-        self.resolution = vuln_web.get('resolution')
         self.attachments = vuln_web.get('_attachments')
         self.hostnames = vuln_web.get('hostnames')
         self.impact = vuln_web.get('impact')
@@ -453,42 +448,12 @@ class VulnWeb(Vuln):
         self.tags = vuln_web.get('tags')
         self.target = vuln_web.get('target')
         self.parent = vuln_web.get('parent')
-        self.policyviolations = vuln_web.get('policyviolations', list())
 
     def set_id(self, parent_id):
         ModelBase.set_id(self, parent_id, self.name, self.website, self.path, self.description)
 
-    def getDescription(self): return self.description
-    def getPath(self): return self.path
-    def getWebsite(self): return self.website
-    def getRequest(self): return self.request
-    def getResponse(self): return self.response
-    def getMethod(self): return self.method
-    def getPname(self): return self.pname
-    def getParams(self): return self.params
-    def getQuery(self): return self.query
-    def getResolution(self): return self.resolution
-    def getAttachments(self): return self.attachments
-    def getEaseOfResolution(self): return self.easeofresolution
-    def getHostnames(self): return self.hostnames
-    def getImpact(self): return self.impact
-    def getService(self): return self.service
-    def getStatus(self): return self.status
-    def getTags(self): return self.tags
-    def getTarget(self): return self.target
-    def getParent(self): return self.parent
-    def getPolicyViolations(self): return self.policyviolations
-
     def jsonable(self):
-        return dict(
-                id=self.id,
-                description=self.description,
-                desc=self.desc,
-                data=self.data,
-                severity=self.severity,
-                refs=self.refs,
-                confirmed=self.confirmed,
-                status=self.status,
+        fields = dict(
                 path=self.path,
                 website=self.website,
                 request=self.request,
@@ -497,7 +462,6 @@ class VulnWeb(Vuln):
                 pname=self.pname,
                 params=self.params,
                 query=self.query,
-                resolution=self.resolution,
                 attachments=self.attachments,
                 hostnames=self.hostnames,
                 impact=self.impact,
@@ -505,8 +469,8 @@ class VulnWeb(Vuln):
                 tags=self.tags,
                 target=self.target,
                 parent=self.parent,
-                policyviolations=self.policyviolations
             )
+        return merge_two_dicts(super(VulnWeb,self).jsonable(),fields)
 
 
 class Note(ModelBase):
@@ -516,19 +480,22 @@ class Note(ModelBase):
         ModelBase.__init__(self, note)
         self.text = note['text']
 
+        self.notes = []
+
     def set_id(self, parent_id):
         ModelBase.set_id(self, parent_id, self.name, self.text)
 
     def get_id(self): return self.id
-    def getDescription(self): return self.description
     def getText(self): return self.text
 
     def jsonable(self):
-        return dict(
+        fields = dict(
                 id=self.id,
                 description=self.description,
-                text=self.text
+                text=self.text,
+                notes=self.notes
         )
+        return merge_two_dicts(super(Note,self).jsonable(),fields)
 
 class Credential(ModelBase):
     class_signature = "Cred"
@@ -550,11 +517,12 @@ class Credential(ModelBase):
     def getPassword(self): return self.password
 
     def jsonable(self):
-        return dict(
+        fields = dict(
                 id=self.id,
                 username=self.username,
                 password=self.password
         )
+        return merge_two_dicts(super(Credential,self).jsonable(),fields)
 
 class Metadata(object):
     """To save information about the modification of ModelObjects.
@@ -578,4 +546,17 @@ class Metadata(object):
         for k, v in dictt.items():
             setattr(self, k, v)
         return self
+    
+    def jsonable(self):
+        fields = dict(
+            id=self.id,
+            command=self.command,
+            duration=self.duration,
+            hostname=self.hostname,
+            ip=self.ip,
+            itime=self.itime,
+            params=self.params
+        )
+        return fields
+
 
