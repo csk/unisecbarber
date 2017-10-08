@@ -16,7 +16,6 @@ import Queue
 import shlex
 import time
 
-from modelactions import modelactions
 from utils.logs import getLogger
 
 class PluginController(object):

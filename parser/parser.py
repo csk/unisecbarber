@@ -21,10 +21,12 @@ from common import factory
 import models
 from encoders import ComplexEncoder
 
-
-CONF = getInstanceConfiguration()
+import argparse
+import select
 
 setUpLogger(False)
+
+CONF = getInstanceConfiguration()
 plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
 plugin_controller = PluginController('PluginController', plugin_manager)
 
@@ -78,9 +80,30 @@ class SectoolParser(object):
 
         return plugin_controller.parse_command(pid, cmd.returncode, output)
 
+
 def main():
+
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("cmd_input", nargs='*', 
+                        help="display a square of a given number")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="increase output verbosity")
+    args = parser.parse_args()
+    if args.verbose:
+        setUpLogger(True)
+    
+    if select.select([sys.stdin,],[],[],0.0)[0]:
+        cmd_to_run = sys.stdin.read()
+    else:
+        cmd_to_run = " ".join(args.cmd_input)
+
+    if not cmd_to_run:
+        parser.print_help()
+        sys.exit(0)
+
     parser = SectoolParser()
-    result = parser.run(sys.stdin.read())
+    result = parser.run(cmd_to_run)
     print json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder)
 
 if __name__ == '__main__':
