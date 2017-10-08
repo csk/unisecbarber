@@ -10,12 +10,12 @@ See the file 'doc/LICENSE' for the license information
 import logging
 import logging.handlers
 import os
-from config.globals import CONST_SECTOOLPARSER_HOME_PATH, CONST_SECTOOLPARSER_LOGS_PATH
+from config.globals import CONST_UNISECBARBER_HOME_PATH, CONST_UNISECBARBER_LOGS_PATH
 
 
-SECTOOLPARSER_USER_HOME = CONST_SECTOOLPARSER_HOME_PATH
+UNISECBARBER_USER_HOME = CONST_UNISECBARBER_HOME_PATH
 LOG_FILE = os.path.join(
-    CONST_SECTOOLPARSER_LOGS_PATH, 'sectoolparser.log')
+    CONST_UNISECBARBER_LOGS_PATH, 'unisecbarber.log')
 
 
 def setUpLogger(debug=False):
@@ -23,7 +23,7 @@ def setUpLogger(debug=False):
     if debug:
         level = logging.DEBUG
 
-    logger = logging.getLogger('sectoolparser')
+    logger = logging.getLogger('unisecbarber')
     logger.propagate = False
     logger.setLevel(level)
 
@@ -42,7 +42,7 @@ def setUpLogger(debug=False):
 
 
 def addHandler(handler):
-    logger = logging.getLogger('sectoolparser')
+    logger = logging.getLogger('unisecbarber')
     logger.addHandler(handler)
 
 
@@ -53,11 +53,11 @@ def getLogger(obj=None):
     """
     if obj is None:
         logger = logging.getLogger(
-            'sectoolparser')
+            'unisecbarber')
     elif type(obj) is str:
         logger = logging.getLogger(
-            '%s.%s' % ('sectoolparser', obj))
+            '%s.%s' % ('unisecbarber', obj))
     else:
         logger = logging.getLogger(
-            '%s.%s' % ('sectoolparser', obj.__class__.__name__))
+            '%s.%s' % ('unisecbarber', obj.__class__.__name__))
     return logger

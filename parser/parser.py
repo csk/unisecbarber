@@ -30,7 +30,7 @@ CONF = getInstanceConfiguration()
 plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
 plugin_controller = PluginController('PluginController', plugin_manager)
 
-class SectoolParser(object):
+class UnisecbarberParser(object):
     """
     TODO: Doc string.
     """
@@ -102,7 +102,7 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    parser = SectoolParser()
+    parser = UnisecbarberParser()
     result = parser.run(cmd_to_run)
     print json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder)
 

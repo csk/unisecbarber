@@ -64,7 +64,7 @@ class PluginBase(object):
             yield param, value
 
     def get_ws(self):
-        return '__sectool__'
+        return '__unisecbarber__'
 
     def getSetting(self, name):
         setting_type, value = self._settings[name]

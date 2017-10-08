@@ -88,7 +88,7 @@ class Configuration:
 
         finally:
             if f: f.close()
-        return (root == "sectoolparser")
+        return (root == "unisecbarber")
 
     def _getTree(self):
         """ Returns an XML tree read from file. """
@@ -419,10 +419,10 @@ class Configuration:
                 elem.tail = i
 
 
-    def saveConfig(self, xml_file="~/.sectool-parser/config/user.xml"):
+    def saveConfig(self, xml_file="~/.unisecbarber/config/user.xml"):
         """ Saves XML config on new file. """
 
-        ROOT = Element("sectoolparser")
+        ROOT = Element("unisecbarber")
 
         tree = self._getTree()
 
@@ -585,8 +585,8 @@ class Configuration:
 def getInstanceConfiguration():
     global the_config
     if the_config is None:
-        if os.path.exists(os.path.expanduser("~/.sectool-parser/config/user.xml")):
-            the_config = Configuration(os.path.expanduser("~/.sectool-parser/config/user.xml"))
+        if os.path.exists(os.path.expanduser("~/.unisecbarber/config/user.xml")):
+            the_config = Configuration(os.path.expanduser("~/.unisecbarber/config/user.xml"))
         else:
-            the_config = Configuration(os.path.expanduser("~/.sectool-parser/config/config.xml"))
+            the_config = Configuration(os.path.expanduser("~/.unisecbarber/config/config.xml"))
     return the_config
