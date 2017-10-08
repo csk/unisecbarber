@@ -80,7 +80,6 @@ class UnisecbarberParser(object):
 
         if self._do_show_output:
             output=""
-            sys.stdout.write(term_width_line_msg('OUTPUT')+"\n")
             while True:
                 line = cmd.stdout.readline()
                 if not line: break
@@ -103,19 +102,26 @@ class UnisecbarberParser(object):
 def main():
 
     parser = argparse.ArgumentParser()
+    parser.prog = 'unisecbarber'
+    parser.description = """
+unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools generated data. This tool receives a commandline as an input, parses it to know which tool it is supposed to be, modifies it adding arguments / redirecting output so it can collect the maximum possible data of it. All the collected data is then parsed again and printed out, structured, to the standard output (by default).
+"""
+    parser.epilog = "___ }:)"
+
     parser.add_argument("cmd_input", nargs='*', 
                         help="display a square of a given number")
     parser.add_argument("-v", "--verbose", action="count",
                         help="increase output verbosity")
+    parser.add_argument("-o", "--output",
+                        help="store to file")
+    parser.add_argument("-m", "--mode",
+                        help="show mode (`cmd`, `json`)")
     args = parser.parse_args()
 
-    show_output=False
+    show_output=(args.mode == 'cmd')
     if args.verbose >= 1:
         setUpLogger(True)
-    if args.verbose >= 2:
-        show_output=True
         
-    
     if select.select([sys.stdin,],[],[],0.0)[0]:
         cmd_to_run = sys.stdin.read()
     else:
@@ -125,8 +131,21 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    parser = UnisecbarberParser(show_output=show_output)
-    result = parser.run(cmd_to_run)
-    if show_output: sys.stdout.write(term_width_line_msg('RESULT'))
-    print(json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder))
-    if show_output: sys.stdout.write(term_width_line_msg('END'))
+    unisecbarber_parser = UnisecbarberParser(show_output=show_output)
+    result = unisecbarber_parser.run(cmd_to_run)
+
+    result_output = json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder)
+    if args.output:
+        f = open(args.output, 'w')
+        f.write(result_output)
+        f.close()
+    if args.mode:
+        if args.mode == 'cmd':
+            pass
+        elif args.mode == 'json':
+            print(result_output)
+        else:
+            parser.print_help()
+            sys.exit(0)
+    else:
+        print(result_output)
