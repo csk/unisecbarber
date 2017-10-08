@@ -14,7 +14,6 @@ from models import (Result,
         Note
         )
 
-
 class ResultBuilder(object):
 
     def __init__(self):
@@ -33,7 +32,7 @@ class ResultBuilder(object):
         if obj.id != None:
             id_arr = obj.id.split('.')
             if len(id_arr) > 1:
-                parent_id = id_arr[0]
+                parent_id = ".".join(id_arr[-2::-1][::-1])
 
         parent_obj = None
         if parent_id != None:
@@ -46,9 +45,9 @@ class ResultBuilder(object):
                     parent_obj.add_interface(obj)
                 if obj.class_signature == 'Service':
                     parent_obj.add_service(obj)
-                if obj.class_signature == 'Vuln':
+                if obj.class_signature == 'Vulnerability':
                     parent_obj.add_vuln(obj)
-                if obj.class_signature == 'VulnWeb':
+                if obj.class_signature == 'VulnerabilityWeb':
                     parent_obj.add_vuln_web(obj)
                 if obj.class_signature == 'Note':
                     parent_obj.add_note(obj)

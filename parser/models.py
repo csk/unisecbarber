@@ -470,6 +470,9 @@ class Note(ModelBase):
     def get_id(self): return self.id
     def getText(self): return self.text
 
+    def add_note(self, note):
+        return self.notes.append(note)
+
     def jsonable(self):
         fields = dict(
                 id=self.id,
