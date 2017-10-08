@@ -38,6 +38,7 @@ def setUpLogger(debug=False):
     fh = logging.handlers.RotatingFileHandler(
         LOG_FILE, maxBytes=5*1024*1024, backupCount=5)
     fh.setFormatter(formatter)
+    logger.handlers = [] # empty handlers to avoid repeated logs when calling multiple times
     logger.addHandler(fh)
 
 

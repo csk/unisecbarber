@@ -4,6 +4,7 @@
 Copyright (c) 2017, Conrad Stein K
 All rights reserved.
 '''
+from __future__ import print_function
 
 __version__ = "0.1.0"
 
@@ -23,6 +24,9 @@ from .config.configuration import getInstanceConfiguration
 from .utils.logs import getLogger, setUpLogger
 from .common import factory
 from .encoders import ComplexEncoder
+from .helpers import term_width_line_msg
+
+
 
 
 setUpLogger(False)
@@ -35,9 +39,10 @@ class UnisecbarberParser(object):
     """
     TODO: Doc string.
     """
-    def __init__(self):
+    def __init__(self, show_output=False):
         self._object_factory = factory
         self._registerObjectTypes()
+        self._do_show_output = show_output
 
     def _registerObjectTypes(self):
         """
@@ -72,7 +77,20 @@ class UnisecbarberParser(object):
         final_cmd = "%s 2>&1 | tee -a %s" % (run_cmd, tmp_file)
         getLogger().info("running: %s" % (final_cmd,))
         cmd = subprocess.Popen(final_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, err = cmd.communicate()
+
+        if self._do_show_output:
+            output=""
+            sys.stdout.write(term_width_line_msg('OUTPUT')+"\n")
+            while True:
+                line = cmd.stdout.readline()
+                if not line: break
+                sys.stdout.write(line)
+                output += line
+            sys.stdout.flush()
+            output2, err = cmd.communicate()
+            output += output2
+        else:
+            output, err = cmd.communicate()
 
         getLogger().info("output: %s" % (output,))
         getLogger().info("err: %s" % (err,))
@@ -87,11 +105,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("cmd_input", nargs='*', 
                         help="display a square of a given number")
-    parser.add_argument("-v", "--verbose", action="store_true",
+    parser.add_argument("-v", "--verbose", action="count",
                         help="increase output verbosity")
     args = parser.parse_args()
-    if args.verbose:
+
+    show_output=False
+    if args.verbose >= 1:
         setUpLogger(True)
+    if args.verbose >= 2:
+        show_output=True
+        
     
     if select.select([sys.stdin,],[],[],0.0)[0]:
         cmd_to_run = sys.stdin.read()
@@ -102,6 +125,8 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    parser = UnisecbarberParser()
+    parser = UnisecbarberParser(show_output=show_output)
     result = parser.run(cmd_to_run)
-    print json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder)
+    if show_output: sys.stdout.write(term_width_line_msg('RESULT'))
+    print(json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder))
+    if show_output: sys.stdout.write(term_width_line_msg('END'))
