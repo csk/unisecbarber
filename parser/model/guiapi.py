@@ -61,7 +61,7 @@ def deregisterWidget(widget):
 def createAndAddHost(name, os="Unknown"):
     host = model.api.newHost(name, os)
     if addHost(host):
-        return host.getID()
+        return host.get_id()
     return None
 
 
@@ -80,7 +80,7 @@ def createAndAddInterface(host_id, name = "", mac = "00:00:00:00:00:00",
     interface = model.api.newInterface(name, mac, ipv4_address, ipv4_mask, ipv4_gateway,
                              ipv4_dns, network_segment, hostname_resolution, parent_id=host_id)
     if addInterface(host_id, interface):
-        return interface.getID()
+        return interface.get_id()
     return None
 
 
@@ -88,7 +88,7 @@ def createAndAddServiceToInterface(host_id, interface_id, name, protocol = "tcp?
                 ports = [], status = "running", version = "unknown", description = ""):
     service = model.api.newService(name, protocol, ports, status, version, description, parent_id=interface_id)
     if addServiceToInterface(host_id, interface_id, service):
-        return service.getID()
+        return service.get_id()
     return None
 
 
@@ -97,7 +97,7 @@ def createAndAddVulnToHost(host_id, name, desc, ref, severity="0",
     vuln = model.api.newVuln(name, desc, ref, severity, resolution,
                              confirmed=confirmed, parent_id=host_id)
     if addVulnToHost(host_id, vuln):
-        return vuln.getID()
+        return vuln.get_id()
     return None
 
 
@@ -106,7 +106,7 @@ def createAndAddVulnToInterface(host_id, interface_id, name, desc, ref,
     vuln = model.api.newVuln(name, desc, ref, severity, resolution,
                              confirmed=confirmed, parent_id=interface_id)
     if addVulnToInterface(host_id, interface_id, vuln):
-        return vuln.getID()
+        return vuln.get_id()
     return None
 
 
@@ -115,7 +115,7 @@ def createAndAddVulnToService(host_id, service_id, name, desc, ref,
     vuln = model.api.newVuln(name, desc, ref, severity, resolution,
                              confirmed=confirmed, parent_id=service_id)
     if addVulnToService(host_id, service_id, vuln):
-        return vuln.getID()
+        return vuln.get_id()
     return None
 
 
@@ -129,7 +129,7 @@ def createAndAddVulnWebToService(host_id, service_id, name, desc, website,
                                 params, query, category, confirmed=confirmed,
                                 parent_id=service_id)
     if addVulnToService(host_id, service_id, vuln):
-        return vuln.getID()
+        return vuln.get_id()
     return None
 
 
@@ -137,9 +137,9 @@ def createAndAddVuln(model_object, name, desc, ref=None, severity="0",
                      resolution="", confirmed=True):
     vuln = model.api.newVuln(name, desc, ref, severity, resolution,
                              confirmed=confirmed,
-                             parent_id=model_object.getID())
-    if addVuln(model_object.getID(), vuln):
-        return vuln.getID()
+                             parent_id=model_object.get_id())
+    if addVuln(model_object.get_id(), vuln):
+        return vuln.get_id()
     return None
 
 
@@ -150,58 +150,58 @@ def createAndAddVulnWeb(model_object, name, desc, website, path, ref=None,
     vuln = model.api.newVulnWeb(name, desc, ref, severity, resolution, website,
                                 path, request, response, method, pname, params,
                                 query, category, confirmed=confirmed,
-                                parent_id=model_object.getID())
-    if addVuln(model_object.getID(), vuln):
-        return vuln.getID()
+                                parent_id=model_object.get_id())
+    if addVuln(model_object.get_id(), vuln):
+        return vuln.get_id()
     return None
 
 
 def createAndAddNoteToHost(host_id, name, text):
     note = model.api.newNote(name, text, parent_id=host_id)
     if addNoteToHost(host_id, note):
-        return note.getID()
+        return note.get_id()
     return None
 
 
 def createAndAddNoteToInterface(host_id, interface_id, name, text):
     note = model.api.newNote(name, text, parent_id=interface_id)
     if addNoteToInterface(host_id, interface_id, note):
-        return note.getID()
+        return note.get_id()
     return None
 
 
 def createAndAddNoteToService(host_id, service_id, name, text):
     note = model.api.newNote(name, text, parent_id=service_id)
     if addNoteToService(host_id, service_id, note):
-        return note.getID()
+        return note.get_id()
     return None
 
 
 def createAndAddNote(model_object, name, text):
-    note = model.api.newNote(name, text, parent_id=model_object.getID())
-    if addNote(model_object.getID(), note):
-        return note.getID()
+    note = model.api.newNote(name, text, parent_id=model_object.get_id())
+    if addNote(model_object.get_id(), note):
+        return note.get_id()
     return None
 
 
 def createAndAddCred(model_object, username, password):
-    cred = model.api.newCred(username, password, parent_id=model_object.getID())
-    if addCred(model_object.getID(), cred):
-        return cred.getID()
+    cred = model.api.newCred(username, password, parent_id=model_object.get_id())
+    if addCred(model_object.get_id(), cred):
+        return cred.get_id()
     return None
 
 
 def createAndAddCredToHost(host_id, username, password):
     cred = model.api.newCred(username, password, parent_id=host_id)
     if addCredToHost(host_id, cred):
-        return cred.getID()
+        return cred.get_id()
     return None
 
 
 def createAndAddCredToService(host_id, service_id, username, password):
     cred = model.api.newCred(username, password, parent_id=service_id)
     if addCredToService(host_id, service_id, cred):
-        return cred.getID()
+        return cred.get_id()
     return None
 
 

@@ -33,10 +33,10 @@ class Workspace(object):
         self.shared = shared
         self.hosts = {}
 
-    def getID(self):
+    def get_id(self):
         return self._id
 
-    def setID(self, id):
+    def set_id(self, id):
         self._id = id
 
     def getName(self):

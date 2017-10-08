@@ -71,6 +71,24 @@ def _flatten_dictionary(dictionary):
             flattened_dict[k] = v
     return flattened_dict
 
+class Result(object):
+
+    def __init__(self):
+        self.hosts = []
+        self.meta = []
+
+    def add_host(self, host):
+        self.hosts.append(host)
+    
+    def get_hosts(self):
+        return self.hosts
+
+    def remove_host(self):
+        return self.hosts
+
+    def jsonable(self):
+        return dict(hosts=self.hosts, meta=self.meta)
+
 
 # NOTE: the whole 'which arguments are mandatory and which type should they be"
 # should probably be reviewed in a nice developmet meeting where
@@ -97,18 +115,13 @@ class ModelBase(object):
     given to us and indeed raise an exception if it wasn't. We can provide
     a default argument for 'description': if nothing came, assume empty string,
     """
-    def __init__(self, obj, workspace_name):
-        self._workspace_name = workspace_name
-        self._server_id = obj.get('_id', '')
+    def __init__(self, obj):
         self.id = obj.get('id', '')
         self.name = obj.get('name')
         self.description = obj.get('description', "")
-        self.owned = obj.get('owned', False)
-        self.owner = obj.get('owner', '')
-        self._metadata = obj.get('metadata', Metadata(self.owner))
-        self.updates = []
+        self._metadata = obj.get('metadata', None)
 
-    def setID(self, parent_id, *args):
+    def set_id(self, parent_id, *args):
         if  self.id and self.id != -1:
             return None
         objid = get_hash(args)
@@ -116,29 +129,9 @@ class ModelBase(object):
             objid = '.'.join([parent_id, objid])
         self.id = objid
 
-    @staticmethod
-    def publicattrsrefs():
-        return {'Description': 'description',
-                'Name': 'name',
-                'Owned': 'owned'}
-
     def defaultValues(self):
         return [-1, 0, '', 'None', 'none', 'unknown', None, [], {}]
 
-    def addUpdate(self, newModelObject):
-        conflict = False
-        for k, v in diff.getPropertiesDiff().items():
-            setattr(self, attribute, prop_update)
-        return conflict
-
-    def getUpdates(self):
-        return self.updates
-
-    def updateResolved(self, update):
-        self.updates.remove(update)
-
-    def getOwner(self): return self.owner
-    def isOwned(self): return self.owned
     def getName(self): return self.name
     def getMetadata(self): return self._metadata
     def getDescription(self): return self.description
@@ -152,47 +145,52 @@ class Host(ModelBase):
     """
     class_signature = 'Host'
 
-    def __init__(self, host, workspace_name):
-        ModelBase.__init__(self, host, workspace_name)
+    def __init__(self, host):
+        ModelBase.__init__(self, host)
         self.default_gateway = host.get('default_gateway')
         self.os = host.get('os') if host.get('os') else 'unknown'
         self.vuln_amount = int(host.get('vulns', 0))
 
-    def setID(self, _):
+        self.interfaces = []
+        self.vulns = []
+        self.creds = []
+        self.services = []
+
+    def set_id(self, _):
         # empty arg so as to share same interface as other classes' generateID
-        ModelBase.setID(self, '', self.name)
-
-    @staticmethod
-    def publicattrsrefs():
-        publicattrs = dict(ModelBase.publicattrsrefs(), **{
-            'Operating System' : 'os'
-        })
-        return publicattrs
-
-    def updateAttributes(self, name=None, description=None, os=None, owned=None):
-        if name is not None:
-            self.name = name
-        if description is not None:
-            self.description = description
-        if os is not None:
-            self.os = os
-        if owned is not None:
-            self.owned = owned
+        ModelBase.set_id(self, '', self.name)
 
     def __str__(self): return "{0} ({1})".format(self.name, self.vuln_amount)
     def getOS(self): return self.os
     def getVulnAmount(self): return self.vuln_amount
-    def getID(self): return self.id
-    def getDefaultGateway(self): return self.default_gateway
-    def getVulns(self):
-        return get_all_vulns(self._workspace_name, hostid=self._server_id)
-    def getInterface(self, interface_couch_id):
-        service = get_interfaces(self._workspace_name, couchid=interface_couch_id)
-        return service[0]
-    def getAllInterfaces(self):
-        return get_interfaces(self._workspace_name, host=self._server_id)
-    def getServices(self):
-        return get_services(self._workspace_name, hostid=self._server_id)
+    
+    def get_id(self): return self.id
+    
+    def add_interface(self, iface):
+        return self.interfaces.append(iface)
+
+    def add_vuln(self, vuln):
+        return self.vulns.append(vuln)
+
+    def add_cred(self, cred):
+        return self.creds.append(cred)
+
+    def add_service(self, service):
+        return self.services.append(service)
+
+    def jsonable(self):
+        return dict(id=self.id,
+                    default_gateway=self.default_gateway,
+                    os=self.os,
+                    vuln_amount=self.vuln_amount,
+                    name=self.name,
+                    description=self.description,
+                    interfaces=self.interfaces,
+                    vulns=self.vulns,
+                    creds=self.creds,
+                    services=self.services
+                    )
+
 
 
 class Interface(ModelBase):
@@ -203,8 +201,8 @@ class Interface(ModelBase):
     """
     class_signature = 'Interface'
 
-    def __init__(self, interface, workspace_name):
-        ModelBase.__init__(self, interface, workspace_name)
+    def __init__(self, interface):
+        ModelBase.__init__(self, interface)
         self.hostnames = interface.get('hostnames', [])
 
         # NOTE. i don't know why this is like this
@@ -229,7 +227,10 @@ class Interface(ModelBase):
         self.amount_ports_closed   = 0
         self.amount_ports_filtered = 0
 
-    def setID(self, parent_id):
+        self.services = []
+        self.vulns = []
+
+    def set_id(self, parent_id):
         try:
             ipv4_address = self.ipv4_address
             ipv6_address = self.ipv6_address
@@ -237,45 +238,7 @@ class Interface(ModelBase):
             ipv4_address = self.ipv4['address']
             ipv6_address = self.ipv6['address']
 
-        ModelBase.setID(self, parent_id, self.network_segment, ipv4_address, ipv6_address)
-
-    @staticmethod
-    def publicattrsrefs():
-        publicattrs = dict(ModelBase.publicattrsrefs(), **{
-            'MAC Address' : 'mac',
-            'IPV4 Settings' : 'ipv4',
-            'IPV6 Settings' : 'ipv6',
-            'Network Segment' : 'network_segment',
-            'Hostnames' : 'hostnames'
-        })
-        return publicattrs
-
-    def updateAttributes(self, name=None, description=None, hostnames=None, mac=None, ipv4=None, ipv6=None,
-                         network_segment=None, amount_ports_opened=None, amount_ports_closed=None,
-                         amount_ports_filtered=None, owned=None):
-
-        if name is not None:
-            self.name = name
-        if description is not None:
-            self.description = description
-        if hostnames is not None:
-            self.hostnames = hostnames
-        if mac is not None:
-            self.mac = mac
-        if ipv4 is not None:
-            self.ipv4 = ipv4
-        if ipv6 is not None:
-            self.ipv6 = ipv6
-        if network_segment is not None:
-            self.network_segment = network_segment
-        if amount_ports_opened is not None:
-            self.setPortsOpened(amount_ports_opened)
-        if amount_ports_closed is not None:
-            self.setPortsClosed(amount_ports_closed)
-        if amount_ports_filtered is not None:
-            self.setPortsFiltered(amount_ports_filtered)
-        if owned is not None:
-            self.owned = owned
+        ModelBase.set_id(self, parent_id, self.network_segment, ipv4_address, ipv6_address)
 
     def setPortsOpened(self, ports_opened):
         self.amount_ports_opened   = ports_opened
@@ -287,7 +250,7 @@ class Interface(ModelBase):
         self.amount_ports_filtered = ports_filtered
 
     def __str__(self): return "{0}".format(self.name)
-    def getID(self): return self.id
+    def get_id(self): return self.id
     def getHostnames(self): return self.hostnames
     def getIPv4(self): return self.ipv4
     def getIPv6(self): return self.ipv6
@@ -308,6 +271,26 @@ class Interface(ModelBase):
     def getVulns(self):
         return get_all_vulns(self._workspace_name, interfaceid=self._server_id)
 
+    def add_service(self, service):
+        return self.services.append(service)
+
+    def add_vuln(self, vuln):
+        return self.vulns.append(vuln)
+
+    def jsonable(self):
+        return dict(id=self.id,
+                    name=self.name,
+                    description=self.description,
+                    hostnames=self.hostnames,
+                    mac=self.mac,
+                    ipv4=self.ipv4,
+                    ipv6=self.ipv6,
+                    network_segment=self.network_segment,
+                    amount_ports_opened=self.amount_ports_opened,
+                    amount_ports_closed=self.amount_ports_closed,
+                    amount_ports_filtered=self.amount_ports_filtered,
+            )
+
 
 class Service(ModelBase):
     """A simple Service class. Should implement all the methods of the
@@ -317,55 +300,53 @@ class Service(ModelBase):
     """
     class_signature = 'Service'
 
-    def __init__(self, service, workspace_name):
-        ModelBase.__init__(self, service, workspace_name)
+    def __init__(self, service):
+        ModelBase.__init__(self, service)
         self.protocol = service['protocol']
         self.ports =  [int(port) for port in service['ports']]
         self.version = service['version']
         self.status = service['status']
         self.vuln_amount = int(service.get('vulns', 0))
 
-    def setID(self, parent_id):
+        self.vulns = []
+        self.vuln_webs = []
+        self.creds = []
+
+    def set_id(self, parent_id):
         # TODO: str from list? ERROR MIGRATION NEEDED
         ports = ':'.join(str(self.ports))
-        ModelBase.setID(self, parent_id, self.protocol, ports)
+        ModelBase.set_id(self, parent_id, self.protocol, ports)
 
-    @staticmethod
-    def publicattrsrefs():
-        publicattrs = dict(ModelBase.publicattrsrefs(), **{
-            'Ports' : 'ports',
-            'Protocol' : 'protocol',
-            'Status' : 'status',
-            'Version' : 'version'
-        })
-        return publicattrs
-
-    def updateAttributes(self, name=None, description=None, protocol=None, ports=None,
-                          status=None, version=None, owned=None):
-        if name is not None:
-            self.name = name
-        if description is not None:
-            self.description = description
-        if protocol is not None:
-            self.protocol = protocol
-        if ports is not None:
-            self.ports = ports
-        if status is not None:
-            self.status = status
-        if version is not None:
-            self.version = version
-        if owned is not None:
-            self.owned = owned
 
     def __str__(self): return "{0} ({1})".format(self.name, self.vuln_amount)
-    def getID(self): return self.id
+    def get_id(self): return self.id
     def getStatus(self): return self.status
     def getPorts(self): return self.ports  # this is a list of one element in faraday
     def getVersion(self): return self.version
     def getProtocol(self): return self.protocol
-    def isOwned(self): return self.owned
-    def getVulns(self): return get_all_vulns(self._workspace_name, serviceid=self._server_id)
 
+    def add_vuln(self, vuln):
+        return self.vulns.append(vuln)
+
+    def add_vuln_web(self, vuln_web):
+        return self.vuln_webs.append(vuln_web)
+
+    def add_cred(self, cred):
+        return self.creds.append(cred)
+
+    def jsonable(self):
+        return dict(
+                    id=self.id,
+                    name=self.name,
+                    description=self.description,
+                    protocol=self.protocol,
+                    ports=self.ports,
+                    status=self.status,
+                    version=self.version,
+                    vulns=self.vulns,
+                    vuln_webs=self.vuln_webs,
+                    creds=self.creds
+            )
 
 class Vuln(ModelBase):
     """A simple Vuln class. Should implement all the methods of the
@@ -375,8 +356,8 @@ class Vuln(ModelBase):
     """
     class_signature = 'Vulnerability'
 
-    def __init__(self, vuln, workspace_name):
-        ModelBase.__init__(self, vuln, workspace_name)
+    def __init__(self, vuln):
+        ModelBase.__init__(self, vuln)
         # this next two lines are stupid but so is life so you should get used to it :)
         self.description = vuln['desc']
         self.desc = vuln['desc']
@@ -388,19 +369,8 @@ class Vuln(ModelBase):
         self.status = vuln.get('status', "opened")
         self.policyviolations = vuln.get('policyviolations', list())
 
-    def setID(self, parent_id):
-        ModelBase.setID(self, parent_id, self.name, self.description)
-
-    @staticmethod
-    def publicattrsrefs():
-        publicattrs = dict(ModelBase.publicattrsrefs(), **{
-            'Data' : 'data',
-            'Severity' : 'severity',
-            'Refs' : 'refs',
-            'Resolution': 'resolution',
-            'Status': 'status'
-        })
-        return publicattrs
+    def set_id(self, parent_id):
+        ModelBase.set_id(self, parent_id, self.name, self.description)
 
     def standarize(self, severity):
         # Transform all severities into lower strings
@@ -430,26 +400,7 @@ class Vuln(ModelBase):
 
         return severity
 
-    def updateAttributes(self, name=None, desc=None, data=None,
-                         severity=None, resolution=None, refs=None, status=None, policyviolations=None):
-        if name is not None:
-            self.name = name
-        if desc is not None:
-            self.desc = desc
-        if data is not None:
-            self.data = data
-        if resolution is not None:
-            self.resolution = resolution
-        if severity is not None:
-            self.severity = self.standarize(severity)
-        if refs is not None:
-            self.refs = refs
-        if status is not None:
-            self.setStatus(status)
-        if policyviolations is not None:
-            self.policyviolations = policyviolations
-
-    def getID(self): return self.id
+    def get_id(self): return self.id
     def getDesc(self): return self.desc
     def getData(self): return self.data
     def getSeverity(self): return self.severity
@@ -462,6 +413,19 @@ class Vuln(ModelBase):
     def setStatus(self, status):
         self.status = status
 
+    def jsonable(self):
+        return dict(
+            id=self.id,
+            description=self.description,
+            desc=self.desc,
+            data=self.data,
+            severity=self.severity,
+            refs=self.refs,
+            confirmed=self.confirmed,
+            resolution=self.resolution,
+            status=self.status,
+            policyviolations=self.policyviolations
+            )
 
 class VulnWeb(Vuln):
     """A simple VulnWeb class. Should implement all the methods of the
@@ -471,8 +435,8 @@ class VulnWeb(Vuln):
     """
     class_signature = 'VulnerabilityWeb'
 
-    def __init__(self, vuln_web, workspace_name):
-        Vuln.__init__(self, vuln_web, workspace_name)
+    def __init__(self, vuln_web):
+        Vuln.__init__(self, vuln_web)
         self.path = vuln_web.get('path')
         self.website = vuln_web.get('website')
         self.request = vuln_web.get('request')
@@ -491,52 +455,8 @@ class VulnWeb(Vuln):
         self.parent = vuln_web.get('parent')
         self.policyviolations = vuln_web.get('policyviolations', list())
 
-    def setID(self, parent_id):
-        ModelBase.setID(self, parent_id, self.name, self.website, self.path, self.description)
-
-    @staticmethod
-    def publicattrsrefs():
-        publicattrs = dict(ModelBase.publicattrsrefs(), **{
-            'Data' : 'data',
-            'Severity' : 'severity',
-            'Refs' : 'refs',
-            'Path' : 'path',
-            'Website' : 'website',
-            'Request' : 'request',
-            'Response' : 'response',
-            'Method' : 'method',
-            'Pname' : 'pname',
-            'Params' : 'params',
-            'Query' : 'query',
-            'Status': 'status'})
-        return publicattrs
-
-    def updateAttributes(self, name=None, desc=None, data=None, website=None, path=None, refs=None,
-                        severity=None, resolution=None, request=None,response=None, method=None,
-                        pname=None, params=None, query=None, category=None, status=None, policyviolations=None):
-
-        super(self.__class__, self).updateAttributes(name, desc, data, severity, resolution, refs, status)
-
-        if website is not None:
-            self.website = website
-        if path is not None:
-            self.path = path
-        if request is not None:
-            self.request = request
-        if response is not None:
-            self.response = response
-        if method is not None:
-            self.method = method
-        if pname is not None:
-            self.pname = pname
-        if params is not None:
-            self.params = params
-        if query is not None:
-            self.query = query
-        if category is not None:
-            self.category = category
-        if policyviolations is not None:
-            self.policyviolations = policyviolations
+    def set_id(self, parent_id):
+        ModelBase.set_id(self, parent_id, self.name, self.website, self.path, self.description)
 
     def getDescription(self): return self.description
     def getPath(self): return self.path
@@ -559,32 +479,62 @@ class VulnWeb(Vuln):
     def getParent(self): return self.parent
     def getPolicyViolations(self): return self.policyviolations
 
+    def jsonable(self):
+        return dict(
+                id=self.id,
+                description=self.description,
+                desc=self.desc,
+                data=self.data,
+                severity=self.severity,
+                refs=self.refs,
+                confirmed=self.confirmed,
+                status=self.status,
+                path=self.path,
+                website=self.website,
+                request=self.request,
+                response=self.response,
+                method=self.method,
+                pname=self.pname,
+                params=self.params,
+                query=self.query,
+                resolution=self.resolution,
+                attachments=self.attachments,
+                hostnames=self.hostnames,
+                impact=self.impact,
+                service=self.service,
+                tags=self.tags,
+                target=self.target,
+                parent=self.parent,
+                policyviolations=self.policyviolations
+            )
+
 
 class Note(ModelBase):
     class_signature = 'Note'
 
-    def __init__(self, note, workspace_name):
-        ModelBase.__init__(self, note, workspace_name)
+    def __init__(self, note):
+        ModelBase.__init__(self, note)
         self.text = note['text']
 
-    def setID(self, parent_id):
-        ModelBase.setID(self, parent_id, self.name, self.text)
+    def set_id(self, parent_id):
+        ModelBase.set_id(self, parent_id, self.name, self.text)
 
-    def updateAttributes(self, name=None, text=None):
-        if name is not None:
-            self.name = name
-        if text is not None:
-            self.text = text
-
-    def getID(self): return self.id
+    def get_id(self): return self.id
     def getDescription(self): return self.description
     def getText(self): return self.text
+
+    def jsonable(self):
+        return dict(
+                id=self.id,
+                description=self.description,
+                text=self.text
+        )
 
 class Credential(ModelBase):
     class_signature = "Cred"
 
-    def __init__(self, credential, workspace_name):
-        ModelBase.__init__(self, credential, workspace_name)
+    def __init__(self, credential):
+        ModelBase.__init__(self, credential)
         try:
             self.username = credential['username']
         except KeyError:
@@ -592,48 +542,19 @@ class Credential(ModelBase):
 
         self.password = credential['password']
 
-    def setID(self, parent_id):
-        ModelBase.setID(self, parent_id, self.name, self.username, self.password)
+    def set_id(self, parent_id):
+        ModelBase.set_id(self, parent_id, self.name, self.username, self.password)
 
-    def updateAttributes(self, username=None, password=None):
-        if username is not None:
-            self.username =username
-        if password is not None:
-            self.password = password
-
-    def getID(self): return self.id
+    def get_id(self): return self.id
     def getUsername(self): return self.username
     def getPassword(self): return self.password
 
-class Command:
-    class_signature = 'CommandRunInformation'
-    def __init__(self, command, workspace_name):
-        self._workspace_name = workspace_name
-        self.id = command['id']
-        self.command = command['command']
-        self.duration = command['duration']
-        self.hostname = command['hostname']
-        self.ip = command['ip']
-        self.itime = command['itime']
-        self.params = command['params']
-        self.user = command['user']
-        self.workspace = command['workspace']
-
-    def getID(self): return self.id
-    def getCommand(self): return self.command
-    def getDuration(self): return self.duration
-    def getHostname(self): return self.hostname
-    def getIP(self): return self.ip
-    def getItime(self): return self.itime
-    def getParams(self): return self.params
-    def getUser(self): return self.user
-
-class MetadataUpdateActions(object):
-    """Constants for the actions made on the update"""
-    UNDEFINED   = -1
-    CREATE      = 0
-    UPDATE      = 1
-
+    def jsonable(self):
+        return dict(
+                id=self.id,
+                username=self.username,
+                password=self.password
+        )
 
 class Metadata(object):
     """To save information about the modification of ModelObjects.
@@ -641,15 +562,14 @@ class Metadata(object):
 
     class_signature = "Metadata"
 
-    def __init__(self, user):
-        self.creator        = user
-        self.owner          = user
-        self.create_time    = time()
-        self.update_time    = time()
-        self.update_user    = user
-        self.update_action  = MetadataUpdateActions.CREATE
-        self.update_controller_action = self.__getUpdateAction()
-        self.command_id = ''
+    def __init__(self, meta):
+        self.id = meta['id']
+        self.command = meta['command']
+        self.duration = meta['duration']
+        self.hostname = meta['hostname']
+        self.ip = meta['ip']
+        self.itime = meta['itime']
+        self.params = meta['params']
 
     def toDict(self):
         return self.__dict__
@@ -659,36 +579,3 @@ class Metadata(object):
             setattr(self, k, v)
         return self
 
-    def update(self, user, action = MetadataUpdateActions.UPDATE):
-        """Update the local metadata giving a user and an action.
-        Update time gets modified to the current system time"""
-        self.update_user = user
-        self.update_time = time()
-        self.update_action = action
-
-        self.update_controller_action = self.__getUpdateAction()
-
-    def __getUpdateAction(self):
-        """This private method grabs the stackframes in look for the controller
-        call that generated the update"""
-
-        l_strace = traceback.extract_stack(limit = 10)
-        controller_funcallnames = [ x[2] for x in l_strace if "controller" in x[0] ]
-
-        if controller_funcallnames:
-            return "ModelControler." +  " ModelControler.".join(controller_funcallnames)
-        return "No model controller call"
-
-# NOTE: uncomment for test
-# class SillyHost():
-#     def __init__(self) :
-#         import random; self.id = random.randint(0, 1000)
-#         self.os = "Windows"
-#     def getID(self): return self.id
-#     def getOS(self): return self.os
-#     def getDefaultGateway(self): return '192.168.1.1'
-#     def getDescription(self): return "a description"
-#     def getName(self): return "my name"
-#     def isOwned(self): return False
-#     def getOwner(self): return False
-#     def getMetadata(self): return {'stuff': 'gives other stuff'}

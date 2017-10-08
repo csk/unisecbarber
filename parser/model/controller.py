@@ -456,7 +456,7 @@ class ModelController(threading.Thread):
         return self.addUpdate(old_obj, new_obj)
 
     def __add(self, new_obj, parent_id=None, *args):
-        old_obj = self.mappers_manager.find(new_obj.class_signature, new_obj.getID())
+        old_obj = self.mappers_manager.find(new_obj.class_signature, new_obj.get_id())
         if not old_obj:
             return self._save_new_object(new_obj)
         return self._handle_conflict(old_obj, new_obj)

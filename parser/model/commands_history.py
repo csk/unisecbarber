@@ -59,10 +59,10 @@ class CommandRunInformation(object):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    def getID(self):
+    def get_id(self):
         return self._id
 
-    def setID(self, id):
+    def set_id(self, id):
         return self._id
 
     def toDict(self):

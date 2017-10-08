@@ -90,7 +90,7 @@ class PluginController(object):
     def createPluginSet(self, id):
         self.plugin_sets[id] = self.plugin_manager.getPlugins()
 
-    def processCommandInput(self, pid, cmd, pwd):
+    def process_command_input(self, pid, cmd, pwd):
         """
         This method tries to find a plugin to parse the command sent
         by the terminal (identiefied by the process id).
@@ -113,7 +113,7 @@ class PluginController(object):
                 return plugin.id, modified_cmd_string
         return None, None
 
-    def parseCommand(self, pid, exit_code, term_output):
+    def parse_command(self, pid, exit_code, term_output):
 
         if pid not in self._active_plugins.keys():
             return False
@@ -122,12 +122,12 @@ class PluginController(object):
             return False
 
         plugin, cmd_info = self._active_plugins.get(pid)
-        plugin.processOutput(term_output)
+        plugin.process_output(term_output)
 
         cmd_info['duration'] = time.time() - cmd_info['itime']
 
         del self._active_plugins[pid]
-        return plugin.root
+        return plugin.get_result()
 
 
     def clearActivePlugins(self):

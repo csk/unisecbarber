@@ -14,16 +14,16 @@ import Queue
 import traceback
 import hashlib
 import json
-from models import (Host,
+from models import (Result,
+        Host,
         Interface,
         Service,
         Vuln,
         VulnWeb,
         Credential,
-        Note,
-        Command
-        )
+        Note        )
 from modelactions import modelactions
+from result import ResultBuilder
 from common import (factory,
                     get_host_properties,
                     get_interface_properties,
@@ -58,10 +58,12 @@ class PluginBase(object):
         self._pending_actions = Queue.Queue()
         self._settings = {}
 
-        self._obj_map = {}
-        self.root = {}
+        self.result_builder = ResultBuilder()
 
         self.debug = False
+
+    def get_result(self):
+        return self.result_builder.get_result()
 
     def has_custom_output(self):
         return bool(self._output_file_path)
@@ -112,7 +114,7 @@ class PluginBase(object):
 
         return options
 
-    def processOutput(self, term_output):
+    def process_output(self, term_output):
         output = term_output
         if self.has_custom_output() and os.path.isfile(self.get_custom_file_path()):
             output = open(self.get_custom_file_path(), 'r').read()
@@ -140,31 +142,14 @@ class PluginBase(object):
         """
         return None
 
-    def __addPendingAction(self, *args):
-        """
-        Adds a new pending action to the queue
-        Action is build with generic args tuple.
-        The caller of this function has to build the action in the right
-        way since no checks are preformed over args
-        """
-        self._pending_actions.put(args)
-
     def createAndAddHost(self, name, os="unknown"):
         host_obj = factory.createModelObject(
             Host.class_signature,
             name, os=os, parent_id=None)
 
-        host_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDHOST, host_obj)
+        self.result_builder.add_item(host_obj)
         
-        if not Host.class_signature in self.root:
-            self.root[Host.class_signature] = []
-
-        host_dict = get_host_properties(host_obj)
-        self.root[Host.class_signature].append(host_dict)
-        self._obj_map[host_obj.getID()] = host_dict
-        
-        return host_obj.getID()
+        return host_obj.get_id()
 
     def createAndAddInterface(
         self, host_id, name="", mac="00:00:00:00:00:00",
@@ -188,18 +173,9 @@ class PluginBase(object):
             network_segment=network_segment,
             hostnames=hostname_resolution, parent_id=host_id)
 
-        int_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDINTERFACE, host_id, int_obj)
-        
-        int_dict = get_interface_properties(int_obj)
-        self._obj_map[int_obj.getID()] = int_dict
-        
-        parent_dict = self._obj_map[host_id]
-        if not Interface.class_signature in parent_dict:
-            parent_dict[Interface.class_signature] = []
-        parent_dict[Interface.class_signature].append(int_dict)
+        self.result_builder.add_item(int_obj)
 
-        return int_obj.getID()
+        return int_obj.get_id()
 
 
     def createAndAddServiceToInterface(self, host_id, interface_id, name,
@@ -212,18 +188,9 @@ class PluginBase(object):
             name, protocol=protocol, ports=ports, status=status,
             version=version, description=description, parent_id=interface_id)
 
-        serv_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDSERVICEINT, host_id, interface_id, serv_obj)
+        self.result_builder.add_item(serv_obj)
 
-        serv_dict = get_service_properties(serv_obj)
-        self._obj_map[serv_obj.getID()] = serv_dict
-        
-        parent_dict = self._obj_map[interface_id]
-        if not Service.class_signature in parent_dict:
-            parent_dict[Service.class_signature] = []
-        parent_dict[Service.class_signature].append(serv_dict)
-
-        return serv_obj.getID()
+        return serv_obj.get_id()
 
     def createAndAddVulnToHost(self, host_id, name, desc="", ref=[],
                                severity="", resolution=""):
@@ -233,17 +200,9 @@ class PluginBase(object):
             name, desc=desc, refs=ref, severity=severity, resolution=resolution,
             confirmed=False, parent_id=host_id)
 
-        vuln_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDVULNHOST, host_id, vuln_obj)
+        self.result_builder.add_item(vuln_obj)
 
-        vuln_dict = get_vuln_properties(vuln_obj)
-        self._obj_map[vuln_obj.getID()] = vuln_dict
-        
-        parent_dict = self._obj_map[host_id]
-        if not Vuln.class_signature in parent_dict:
-            parent_dict[Vuln.class_signature] = []
-        parent_dict[Vuln.class_signature].append(vuln_dict)
-        return vuln_obj.getID()
+        return vuln_obj.get_id()
 
     def createAndAddVulnToInterface(self, host_id, interface_id, name,
                                     desc="", ref=[], severity="",
@@ -254,18 +213,9 @@ class PluginBase(object):
             name, desc=desc, refs=ref, severity=severity, resolution=resolution,
             confirmed=False, parent_id=interface_id)
 
-        vuln_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDVULNINT, host_id, interface_id, vuln_obj)
+        self.result_builder.add_item(vuln_obj)
 
-        vuln_dict = get_vuln_properties(vuln_obj)
-        self._obj_map[vuln_obj.getID()] = vuln_dict
-        
-        parent_dict = self._obj_map[interface_id]
-        if not Vuln.class_signature in parent_dict:
-            parent_dict[Vuln.class_signature] = []
-        parent_dict[Vuln.class_signature].append(vuln_dict)
-
-        return vuln_obj.getID()
+        return vuln_obj.get_id()
 
     def createAndAddVulnToService(self, host_id, service_id, name, desc="",
                                   ref=[], severity="", resolution=""):
@@ -275,18 +225,9 @@ class PluginBase(object):
             name, desc=desc, refs=ref, severity=severity, resolution=resolution,
             confirmed=False, parent_id=service_id)
 
-        vuln_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDVULNSRV, host_id, service_id, vuln_obj)
+        self.result_builder.add_item(vuln_obj)
 
-        vuln_dict = get_vuln_properties(vuln_obj)
-        self._obj_map[vuln_obj.getID()] = vuln_dict
-        
-        parent_dict = self._obj_map[service_id]
-        if not Vuln.class_signature in parent_dict:
-            parent_dict[Vuln.class_signature] = []
-        parent_dict[Vuln.class_signature].append(vuln_dict)
-
-        return vuln_obj.getID()
+        return vuln_obj.get_id()
 
     def createAndAddVulnWebToService(self, host_id, service_id, name, desc="",
                                      ref=[], severity="", resolution="",
@@ -300,18 +241,9 @@ class PluginBase(object):
             method=method, pname=pname, params=params, query=query,
             category=category, confirmed=False, parent_id=service_id)
 
-        vulnweb_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDVULNWEBSRV, host_id, service_id, vulnweb_obj)
+        self.result_builder.add_item(vulnweb_obj)
 
-        vulnweb_dict = get_vuln_web_properties(vulnweb_obj)
-        self._obj_map[vulnweb_obj.getID()] = vulnweb_dict
-        
-        parent_dict = self._obj_map[service_id]
-        if not VulnWeb.class_signature in parent_dict:
-            parent_dict[VulnWeb.class_signature] = []
-        parent_dict[VulnWeb.class_signature].append(vulnweb_dict)
-
-        return vulnweb_obj.getID()
+        return vulnweb_obj.get_id()
 
     def createAndAddNoteToHost(self, host_id, name, text):
 
@@ -319,9 +251,8 @@ class PluginBase(object):
             Note.class_signature,
             name, text=text, parent_id=host_id)
 
-        note_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDNOTEHOST, host_id, note_obj)
-        return note_obj.getID()
+        self.result_builder.add_item(note_obj)
+        return note_obj.get_id()
 
     def createAndAddNoteToInterface(self, host_id, interface_id, name, text):
 
@@ -329,9 +260,8 @@ class PluginBase(object):
             Note.class_signature,
             name, text=text, parent_id=interface_id)
 
-        note_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDNOTEINT, host_id, interface_id, note_obj)
-        return note_obj.getID()
+        self.result_builder.add_item(note_obj)
+        return note_obj.get_id()
 
     def createAndAddNoteToService(self, host_id, service_id, name, text):
 
@@ -339,9 +269,8 @@ class PluginBase(object):
             Note.class_signature,
             name, text=text, parent_id=service_id)
 
-        note_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDNOTESRV, host_id, service_id, note_obj)
-        return note_obj.getID()
+        self.result_builder.add_item(note_obj)
+        return note_obj.get_id()
 
     def createAndAddNoteToNote(self, host_id, service_id, note_id, name, text):
 
@@ -349,9 +278,8 @@ class PluginBase(object):
             Note.class_signature,
             name, text=text, parent_id=note_id)
 
-        note_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDNOTENOTE, host_id, service_id, note_id, note_obj)
-        return note_obj.getID()
+        self.result_builder.add_item(note_obj)
+        return note_obj.get_id()
 
     def createAndAddCredToService(self, host_id, service_id, username,
                                   password):
@@ -360,16 +288,15 @@ class PluginBase(object):
             Credential.class_signature,
             username, password=password, parent_id=service_id)
 
-        cred_obj._metadata.creator = self.id
-        self.__addPendingAction(modelactions.ADDCREDSRV, host_id, service_id, cred_obj)
-        return cred_obj.getID()
+        self.result_builder.add_item(cred_obj)
+        return cred_obj.get_id()
 
 
 class PluginTerminalOutput(PluginBase):
     def __init__(self):
         super(PluginTerminalOutput, self).__init__()
 
-    def processOutput(self, term_output):
+    def process_output(self, term_output):
         self.parseOutputString(term_output)
 
 
@@ -377,7 +304,7 @@ class PluginCustomOutput(PluginBase):
     def __init__(self):
         super(PluginCustomOutput, self).__init__()
 
-    def processOutput(self, term_output):
+    def process_output(self, term_output):
         # we discard the term_output since it's not necessary
         # for this type of plugins
         self.processReport(self._output_file_path)

@@ -31,7 +31,7 @@ def get_object_properties(obj):
     if not isinstance(obj.getMetadata(), dict):
         metadata = metadata.toDict()
 
-    return {'id': obj.getID(),
+    return {'id': obj.get_id(),
             'name': obj.getName(),
             'description': obj.getDescription(),
             'metadata': metadata,
@@ -102,7 +102,7 @@ def get_credential_properties(credential):
     return cred_dict
 
 def get_command_properties(command):
-    return {'id': command.getID(),
+    return {'id': command.get_id(),
             'command': command.command,
             'user': command.user,
             'ip': command.ip,
@@ -110,12 +110,6 @@ def get_command_properties(command):
             'itime': command.itime,
             'duration': command.duration,
             'params': command.params}
-
-def merge_two_dicts(x, y):
-    """Given two dicts, merge them into a new dict as a shallow copy."""
-    z = x.copy()
-    z.update(y)
-    return z
 
 # -------------------------------------------------------------------------------
 # TODO: refactor this class to make it generic so this can be used also for plugins
@@ -190,15 +184,13 @@ class ModelObjectFactory(object):
         If workspace_name is None, it will be inferred from the CONF module.
         parent_id should only be None if classname is 'Host' or maybe 'Note' or 'Credential'.
         """
-        if not workspace_name:
-            workspace_name = 'sectoolparser'
         if classname in self._registered_objects:
             if object_name is not None:
                 objargs['name'] = object_name
                 objargs['_id'] = -1  # they still don't have a server id
                 objargs['id'] = -1 # we'll generate it after making sure the objects are okey
-                tmpObj = self._registered_objects[classname](objargs, workspace_name)
-                tmpObj.setID(parent_id)
+                tmpObj = self._registered_objects[classname](objargs)
+                tmpObj.set_id(parent_id)
                 return tmpObj
             else:
                 raise Exception("Object name parameter missing. Cannot create object class: %s" % classname)

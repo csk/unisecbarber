@@ -33,9 +33,9 @@ def plot_graph():
     metadata = MetadataHistory()
 
     for obj in ModelObjectIterator():
-        history = metadata.getHistory(obj.getID())
+        history = metadata.getHistory(obj.get_id())
         for i in range(len(history) - 1):
-            f = lambda x: "%s -> %s" % (obj.getID(), x.update_controller_action)
+            f = lambda x: "%s -> %s" % (obj.get_id(), x.update_controller_action)
             edge = (f(history[i]), f(history[i + 1]))
             edges_list.append(edge)
 

@@ -7,34 +7,11 @@ All rights reserved.
 '''
 
 import json
-import models
 
-class HostEncoder(json.JSONEncoder):
-    def __init__(self, **kwargs):
-        super(HostEncoder, self).__init__(**kwargs)
-
+# thanks to https://stackoverflow.com/a/5165421/220666
+class ComplexEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, models.Host):
-            result = {
-                "_type": models.Host.class_signature,
-                "name": obj.name
-            }
-            # ifaces = obj.getAllInterfaces()
-            # if len(ifaces) > 0:
-            result['interfaces'] = json.JSONEncoder().default((1,2,3))
-            return result
-        return super(HostEncoder, self).default(obj)
-
-
-class InterfaceEncoder(json.JSONEncoder):
-    def __init__(self, nan_str="null", **kwargs):
-        super(HostEncoder, self).__init__(**kwargs)
-
-    def default(self, obj):
-        if isinstance(obj, models.Interface):
-            return {
-                "_type": models.Interface.class_signature,
-                "name": obj.name
-            }
-        return super(HostEncoder, self).default(obj)
-
+        if hasattr(obj,'jsonable'):
+            return obj.jsonable()
+        else:
+            return json.JSONEncoder.default(self, obj)

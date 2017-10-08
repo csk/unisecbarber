@@ -19,12 +19,12 @@ from config.configuration import getInstanceConfiguration
 from utils.logs import getLogger, setUpLogger
 from common import factory
 import models
-import encoders
+from encoders import ComplexEncoder
 
 
 CONF = getInstanceConfiguration()
 
-# setUpLogger(False)
+setUpLogger(False)
 plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
 plugin_controller = PluginController('PluginController', plugin_manager)
 
@@ -57,7 +57,7 @@ class SectoolParser(object):
         pid=1 # maybe not usefull at all
         
         getLogger().info("input: '%s'" % (cmd_input, ))
-        plugin_id, mod_cmd = plugin_controller.processCommandInput(pid, cmd_input, pwd)
+        plugin_id, mod_cmd = plugin_controller.process_command_input(pid, cmd_input, pwd)
 
         run_cmd  = cmd_input
         if mod_cmd is not None:
@@ -76,13 +76,12 @@ class SectoolParser(object):
         getLogger().info("plugin.id: %s" % (plugin_id,))
         getLogger().info("modified_cmd_string: %s" % (mod_cmd,))
 
-        objs = plugin_controller.parseCommand(pid, cmd.returncode, output)
-        return objs
+        return plugin_controller.parse_command(pid, cmd.returncode, output)
 
 def main():
     parser = SectoolParser()
-    objs = parser.run(sys.stdin.read())
-    print json.dumps(objs, indent=4, sort_keys=True)
+    result = parser.run(sys.stdin.read())
+    print json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder)
 
 if __name__ == '__main__':
     main()
