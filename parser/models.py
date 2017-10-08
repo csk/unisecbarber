@@ -119,7 +119,6 @@ class ModelBase(object):
 
     def jsonable(self):
         return dict(
-            id=self.id,
             name=self.name,
             description=self.description
             )
@@ -475,8 +474,6 @@ class Note(ModelBase):
 
     def jsonable(self):
         fields = dict(
-                id=self.id,
-                description=self.description,
                 text=self.text,
                 notes=self.notes
         )
@@ -501,7 +498,6 @@ class Credential(ModelBase):
 
     def jsonable(self):
         fields = dict(
-                id=self.id,
                 username=self.username,
                 password=self.password
         )
