@@ -11,7 +11,7 @@ CONST_UNISECBARBER_HOME_PATH = '~/.unisecbarber'
 CONST_UNISECBARBER_PLUGINS_PATH = 'plugins'
 CONST_UNISECBARBER_PLUGINS_REPO_PATH = 'plugins/repo'
 CONST_UNISECBARBER_IMAGES = 'images/'
-CONST_UNISECBARBER_LOGS_PATH = 'logs/'
+CONST_UNISECBARBER_LOGS_PATH = 'unisecbarber/logs/'
 CONST_UNISECBARBER_FOLDER_LIST = [ "config", "data", "images",
                         "persistence", "plugins",
                         "report", "temp", "zsh", "logs" ]

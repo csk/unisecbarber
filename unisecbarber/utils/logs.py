@@ -10,7 +10,7 @@ See the file 'doc/LICENSE' for the license information
 import logging
 import logging.handlers
 import os
-from config.globals import CONST_UNISECBARBER_HOME_PATH, CONST_UNISECBARBER_LOGS_PATH
+from unisecbarber.config.globals import CONST_UNISECBARBER_HOME_PATH, CONST_UNISECBARBER_LOGS_PATH
 
 
 UNISECBARBER_USER_HOME = CONST_UNISECBARBER_HOME_PATH

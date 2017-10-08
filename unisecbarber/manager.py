@@ -14,10 +14,10 @@ import re
 import sys
 import traceback
 
-from controller import PluginController
+from .controller import PluginController
 
-from config.configuration import getInstanceConfiguration
-from utils.logs import getLogger
+from .config.configuration import getInstanceConfiguration
+from .utils.logs import getLogger
 
 CONF = getInstanceConfiguration()
 
@@ -91,6 +91,8 @@ class PluginManager(object):
             pass
 
         sys.path.append(plugin_repo_path)
+        # Following line loads path so `plugins` modules can be imported withou change in plugins code
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__))))
 
         dir_name_regexp = re.compile(r"^[\d\w\-\_]+$")
         for name in os.listdir(plugin_repo_path):

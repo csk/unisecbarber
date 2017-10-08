@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 '''
@@ -6,23 +5,25 @@ Copyright (c) 2017, Conrad Stein K
 All rights reserved.
 '''
 
+__version__ = "0.1.0"
+
 import os
 import sys
 import json
 import subprocess
 import shlex
-from tempfile import mkstemp
-
-from manager import PluginManager
-from controller import PluginController
-from config.configuration import getInstanceConfiguration
-from utils.logs import getLogger, setUpLogger
-from common import factory
-import models
-from encoders import ComplexEncoder
-
 import argparse
 import select
+from tempfile import mkstemp
+
+from . import models
+from .manager import PluginManager
+from .controller import PluginController
+from .config.configuration import getInstanceConfiguration
+from .utils.logs import getLogger, setUpLogger
+from .common import factory
+from .encoders import ComplexEncoder
+
 
 setUpLogger(False)
 
@@ -83,7 +84,6 @@ class UnisecbarberParser(object):
 
 def main():
 
-
     parser = argparse.ArgumentParser()
     parser.add_argument("cmd_input", nargs='*', 
                         help="display a square of a given number")
@@ -105,6 +105,3 @@ def main():
     parser = UnisecbarberParser()
     result = parser.run(cmd_to_run)
     print json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder)
-
-if __name__ == '__main__':
-    main()
