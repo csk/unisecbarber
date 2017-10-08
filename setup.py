@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
+import re
 from setuptools import setup, find_packages
+
+version = re.search(
+    '^__version__\s*=\s*"(.*)"',
+    open('unisecbarber/unisecbarber.py').read(),
+    re.M
+    ).group(1)
+ 
 
 with open('README.rst') as f:
     readme = f.read()
@@ -9,13 +17,16 @@ with open('LICENSE') as f:
 
 setup(
     name='unisecbarber',
-    version='0.1.0',
+    version=version,
     description='UNIversal SECurity Barber - Security Tools Parser based on Infobyte Faraday',
     long_description=readme,
     author='Conrad Stein K',
     author_email='conradsteink@gmail.com',
     url='',
     license=license,
-    packages=find_packages(exclude=('tests', 'docs'))
+    packages=find_packages(exclude=('tests', 'docs')),
+    entry_points = {
+        "console_scripts": ['unisecbarber = unisecbarber.unisecbarber:main']
+    }
 )
 
