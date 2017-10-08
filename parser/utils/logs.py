@@ -30,9 +30,9 @@ def setUpLogger(debug=False):
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    ch = logging.StreamHandler()
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
+    # ch = logging.StreamHandler()
+    # ch.setFormatter(formatter)
+    # logger.addHandler(ch)
 
     # File logger
     fh = logging.handlers.RotatingFileHandler(

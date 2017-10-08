@@ -27,7 +27,6 @@ class PluginController(object):
         self.plugin_manager = plugin_manager
         self._plugins = plugin_manager.getPlugins()
         self.id = id
-        self._actionDispatcher = None
         self.output_path = '.'
         self._active_plugins = {}
         self.plugin_sets = {}

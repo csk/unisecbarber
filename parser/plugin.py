@@ -10,10 +10,6 @@ See the file 'doc/LICENSE' for the license information
 
 import os
 import re
-import Queue
-import traceback
-import hashlib
-import json
 from models import (Result,
         Host,
         Interface,
@@ -22,7 +18,6 @@ from models import (Result,
         VulnWeb,
         Credential,
         Note        )
-from modelactions import modelactions
 from result import ResultBuilder
 from common import factory
 
@@ -49,7 +44,6 @@ class PluginBase(object):
         self.framework_version = None
         self._completition = {}
         self._new_elems = []
-        self._pending_actions = Queue.Queue()
         self._settings = {}
 
         self.result_builder = ResultBuilder()

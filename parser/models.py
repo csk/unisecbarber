@@ -6,21 +6,8 @@ Copyright (C) 2016  Infobyte LLC (http://www.infobytesec.com/)
 See the file 'doc/LICENSE' for the license information
 
 '''
-import glob
-import os
-import sys
-from time import time
-import traceback
-from threading import Lock
-
 from common import get_hash
-
-from functools import wraps
-
 from utils.logs import getLogger
-
-
-
 
 def log(msg ,level = "INFO"):
     """
@@ -73,7 +60,7 @@ class Result(object):
 
     def __init__(self):
         self.hosts = []
-        self.meta = []
+        self.meta = dict()
 
     def add_host(self, host):
         self.hosts.append(host)
@@ -130,12 +117,8 @@ class ModelBase(object):
     def defaultValues(self):
         return [-1, 0, '', 'None', 'none', 'unknown', None, [], {}]
 
-    def getName(self): return self.name
-    def getMetadata(self): return self._metadata
-
     def jsonable(self):
         return dict(
-            id=self.id,
             name=self.name,
             description=self.description
             )
@@ -166,8 +149,6 @@ class Host(ModelBase):
         ModelBase.set_id(self, '', self.name)
 
     def __str__(self): return "{0} ({1})".format(self.name, self.vuln_amount)
-    def getOS(self): return self.os
-    def getVulnAmount(self): return self.vuln_amount
     
     def get_id(self): return self.id
     
@@ -513,8 +494,6 @@ class Credential(ModelBase):
         ModelBase.set_id(self, parent_id, self.name, self.username, self.password)
 
     def get_id(self): return self.id
-    def getUsername(self): return self.username
-    def getPassword(self): return self.password
 
     def jsonable(self):
         fields = dict(
@@ -539,10 +518,10 @@ class Metadata(object):
         self.itime = meta['itime']
         self.params = meta['params']
 
-    def toDict(self):
+    def to_dict(self):
         return self.__dict__
 
-    def fromDict(self, dictt):
+    def from_dict(self, dictt):
         for k, v in dictt.items():
             setattr(self, k, v)
         return self
