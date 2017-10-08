@@ -119,6 +119,7 @@ class ModelBase(object):
 
     def jsonable(self):
         return dict(
+            id=self.id,
             name=self.name,
             description=self.description
             )
