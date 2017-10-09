@@ -39,10 +39,11 @@ class UnisecbarberParser(object):
     """
     TODO: Doc string.
     """
-    def __init__(self, show_output=False):
+    def __init__(self, show_output=False, stdin_pipe=False):
         self._object_factory = factory
         self._registerObjectTypes()
         self._do_show_output = show_output
+        self._do_stdin_pipe = stdin_pipe
 
     def _registerObjectTypes(self):
         """
@@ -76,9 +77,12 @@ class UnisecbarberParser(object):
 
         final_cmd = "%s 2>&1 | tee -a %s" % (run_cmd, tmp_file)
         getLogger().info("running: %s" % (final_cmd,))
-        cmd = subprocess.Popen(final_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        if self._do_show_output:
+        cmd = subprocess.Popen(final_cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if self._do_stdin_pipe:
+            output, err = cmd.communicate(input=sys.stdin.read())
+            if self._do_show_output:
+                sys.stdout.write(output)
+        elif self._do_show_output:
             output=""
             while True:
                 line = cmd.stdout.readline()
@@ -114,6 +118,8 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
                         help="increase output verbosity")
     parser.add_argument("-o", "--output",
                         help="store to file")
+    parser.add_argument("-i", "--input", action="store_true",
+                        help="pass input from stdin to cmd")
     parser.add_argument("-m", "--mode",
                         help="show mode (`cmd`, `json`)")
     args = parser.parse_args()
@@ -122,7 +128,7 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
     if args.verbose >= 1:
         setUpLogger(True)
         
-    if select.select([sys.stdin,],[],[],0.0)[0]:
+    if not args.input and select.select([sys.stdin,],[],[],0.0)[0]:
         cmd_to_run = sys.stdin.read()
     else:
         cmd_to_run = " ".join(args.cmd_input)
@@ -131,7 +137,7 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
         parser.print_help()
         sys.exit(0)
 
-    unisecbarber_parser = UnisecbarberParser(show_output=show_output)
+    unisecbarber_parser = UnisecbarberParser(show_output=show_output, stdin_pipe=args.input)
     result = unisecbarber_parser.run(cmd_to_run)
 
     result_output = json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder)
