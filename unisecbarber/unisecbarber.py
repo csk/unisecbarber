@@ -15,7 +15,11 @@ import subprocess
 import shlex
 import argparse
 import select
+import shutil
 from tempfile import mkstemp
+
+from config.globals import *
+
 
 from . import models
 from .manager import PluginManager
@@ -26,14 +30,15 @@ from .common import factory
 from .encoders import ComplexEncoder
 from .helpers import term_width_line_msg
 
+USER_HOME = os.path.expanduser(CONST_USER_HOME)
+UNISECBARBER_BASE = os.path.dirname(os.path.realpath(__file__))
 
-
-
-setUpLogger(False)
-
-CONF = getInstanceConfiguration()
-plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
-plugin_controller = PluginController('PluginController', plugin_manager)
+UNISECBARBER_USER_HOME = os.path.expanduser(CONST_UNISECBARBER_HOME_PATH)
+UNISECBARBER_PLUGINS_PATH = os.path.join(UNISECBARBER_USER_HOME, CONST_UNISECBARBER_PLUGINS_PATH)
+UNISECBARBER_PLUGINS_BASEPATH = os.path.join(UNISECBARBER_BASE, CONST_UNISECBARBER_PLUGINS_REPO_PATH)
+UNISECBARBER_USER_CONFIG_XML = os.path.join(UNISECBARBER_USER_HOME, CONST_UNISECBARBER_USER_CFG)
+UNISECBARBER_BASE_CONFIG_XML = os.path.join(UNISECBARBER_BASE, CONST_UNISECBARBER_BASE_CFG)
+UNISECBARBER_VERSION_FILE = os.path.join(UNISECBARBER_BASE, CONST_VERSION_FILE)
 
 class UnisecbarberParser(object):
     """
@@ -103,7 +108,70 @@ class UnisecbarberParser(object):
         return plugin_controller.parse_command(pid, cmd.returncode, output)
 
 
-def main():
+def setup_plugins(dev_mode=False):
+    """Checks and handles Faraday's plugin status.
+
+    When dev_mode is True, the user enters in development mode and the plugins
+    will be replaced with the latest ones.
+
+    Otherwise, it checks if the plugin folders exists or not, and creates it
+    with its content.
+
+    TODO: When dependencies are not satisfied ask user if he wants to try and
+    run faraday with a inestability warning.
+
+    """
+
+    if dev_mode:
+        getLogger().warning("Running under plugin development mode!")
+        getLogger().warning("Using user plugins folder")
+    else:
+        if os.path.isdir(UNISECBARBER_PLUGINS_PATH):
+            getLogger().info("Removing old plugins folder.")
+            shutil.rmtree(UNISECBARBER_PLUGINS_PATH)
+        else:
+            getLogger().info("No plugins folder detected. Creating new one.")
+
+        shutil.copytree(UNISECBARBER_PLUGINS_BASEPATH, UNISECBARBER_PLUGINS_PATH)
+
+
+def setup_xml_config():
+    """Checks user configuration file status.
+
+    If there is no custom config the default one will be copied as a default.
+    """
+
+    if not os.path.isfile(UNISECBARBER_USER_CONFIG_XML):
+        getLogger().info("Copying default configuration from project.")
+        if not os.path.exists(os.path.dirname(UNISECBARBER_USER_CONFIG_XML)):
+            os.mkdir(os.path.dirname(UNISECBARBER_USER_CONFIG_XML))
+        shutil.copy(UNISECBARBER_BASE_CONFIG_XML, UNISECBARBER_USER_CONFIG_XML)
+    else:
+        getLogger().info("Using custom user configuration.")
+
+
+def check_configuration():
+    """Checks if the environment is ready to run Faraday.
+
+    Checks different environment requirements and sets them before starting
+    Faraday. This includes checking for plugin folders, libraries,
+    and ZSH integration.
+    """
+    print("FOOO")
+    getLogger().info("Checking configuration.")
+    getLogger().info("Setting up plugins.")
+    setup_plugins()
+    getLogger().info("Setting up user configuration.")
+    setup_xml_config()
+
+
+setUpLogger(False)
+check_configuration()
+CONF = getInstanceConfiguration()
+plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
+plugin_controller = PluginController('PluginController', plugin_manager)
+
+def main():    
 
     parser = argparse.ArgumentParser()
     parser.prog = 'unisecbarber'
