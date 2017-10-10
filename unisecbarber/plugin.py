@@ -108,11 +108,6 @@ class PluginBase(object):
             output = open(self.get_custom_file_path(), 'r').read()
         self.parseOutputString(output)
 
-    def processReport(self, filepath):
-        if os.path.isfile(filepath):
-            output = open(filepath, 'r').read()
-            self.parseOutputString(output)
-
     def parseOutputString(self, output):
         """
         This method must be implemented.
@@ -286,13 +281,3 @@ class PluginTerminalOutput(PluginBase):
 
     def process_output(self, term_output):
         self.parseOutputString(term_output)
-
-
-class PluginCustomOutput(PluginBase):
-    def __init__(self):
-        super(PluginCustomOutput, self).__init__()
-
-    def process_output(self, term_output):
-        # we discard the term_output since it's not necessary
-        # for this type of plugins
-        self.processReport(self._output_file_path)
