@@ -28,7 +28,7 @@ class PluginController(object):
         self.id = id
         self.output_path = '.'
         self._active_plugins = {}
-        self.plugin_sets = {}
+        self.plugin_set = None
         self.plugin_manager.addController(self, self.id)
 
     def _find_plugin(self, plugin_id):
@@ -79,24 +79,31 @@ class PluginController(object):
         return self._plugins
 
     def updatePluginSettings(self, plugin_id, new_settings):
-        for plugin_set in self.plugin_sets.values():
-            if plugin_id in plugin_set:
-                plugin_set[plugin_id].updateSettings(new_settings)
+
+        if plugin_id in self.plugin_set:
+            plugin_set[plugin_id].updateSettings(new_settings)
         if plugin_id in self._plugins:
             self._plugins[plugin_id].updateSettings(new_settings)
 
-    def createPluginSet(self, id):
-        self.plugin_sets[id] = self.plugin_manager.getPlugins()
+    def createPluginSet(self):
+        self.plugin_set = self.plugin_manager.getPlugins()
 
-    def process_command_input(self, pid, cmd, pwd):
+    def get_plugin_by_id(self, pid):
+        if not self.plugin_set:
+            self.createPluginSet()
+        if pid in self.plugin_set.keys():
+            return self.plugin_set[pid]
+        return None
+
+    def process_command_input(self, cmd, pwd):
         """
         This method tries to find a plugin to parse the command sent
         by the terminal (identiefied by the process id).
         """
-        if pid not in self.plugin_sets:
-            self.createPluginSet(pid)
+        if not self.plugin_set:
+            self.createPluginSet()
 
-        plugin = self._get_plugins_by_input(cmd, self.plugin_sets[pid])
+        plugin = self._get_plugins_by_input(cmd, self.plugin_set)
 
         if plugin:
             modified_cmd_string = plugin.processCommandString("", pwd, cmd)
@@ -106,25 +113,28 @@ class PluginController(object):
                         'command': cmd.split()[0],
                         'params': ' '.join(cmd.split()[1:])
                         }
-                self._active_plugins[pid] = plugin, cmd_info
+                self._active_plugin = plugin, cmd_info
 
                 return plugin.id, modified_cmd_string
         return None, None
 
-    def parse_command(self, pid, exit_code, term_output):
+    def parse_command(self, exit_code, term_output, plugin=None):
 
-        if pid not in self._active_plugins.keys():
+        if plugin:
+            plugin.process_output(term_output)
+            return plugin.get_result()
+        elif not self._active_plugin:
             return False
         if exit_code != 0:
-            del self._active_plugins[pid]
+            self._active_plugin = None
             return False
 
-        plugin, cmd_info = self._active_plugins.get(pid)
+        plugin, cmd_info = self._active_plugin
         plugin.process_output(term_output)
 
         cmd_info['duration'] = time.time() - cmd_info['itime']
 
-        del self._active_plugins[pid]
+        self._active_plugin = None
         return plugin.get_result()
 
 

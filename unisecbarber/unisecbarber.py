@@ -47,11 +47,12 @@ class UnisecbarberParser(object):
     """
     TODO: Doc string.
     """
-    def __init__(self, show_output=False, stdin_pipe=False):
+    def __init__(self, show_output=False, stdin_pipe=False, plugin=None):
         self._object_factory = factory
         self._registerObjectTypes()
         self._do_show_output = show_output
         self._do_stdin_pipe = stdin_pipe
+        self._plugin = plugin
 
         CONF = getInstanceConfiguration()
         plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
@@ -75,10 +76,9 @@ class UnisecbarberParser(object):
         cmd_input = cmd_input.strip(' \t\n\r')
 
         pwd = os.getcwd()
-        pid=1 # maybe not usefull at all
         
         getLogger().info("input: '%s'" % (cmd_input, ))
-        plugin_id, mod_cmd = self._plugin_controller.process_command_input(pid, cmd_input, pwd)
+        plugin_id, mod_cmd = self._plugin_controller.process_command_input(cmd_input, pwd)
 
         run_cmd  = cmd_input
         if mod_cmd is not None:
@@ -109,7 +109,13 @@ class UnisecbarberParser(object):
         getLogger().info("plugin.id: %s" % (plugin_id,))
         getLogger().info("modified_cmd_string: %s" % (mod_cmd,))
 
-        return self._plugin_controller.parse_command(pid, cmd.returncode, output)
+        return self._plugin_controller.parse_command(cmd.returncode, output)
+
+    def parse_output(self, output):
+        ret_code=0
+        plugin = self._plugin_controller.get_plugin_by_id(self._plugin)
+        return self._plugin_controller.parse_command(ret_code, output, plugin=plugin)
+
 
 def setup_folders(folderlist):
     """Checks if a list of folders exists and creates them otherwise.
@@ -192,7 +198,7 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
     parser.epilog = "___ }:)"
 
     parser.add_argument("cmd_input", nargs='*', 
-                        help="display a square of a given number")
+                        help="command line to execute")
     parser.add_argument("-v", "--verbose", action="count",
                         help="increase output verbosity")
     parser.add_argument("-o", "--output",
@@ -201,6 +207,10 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
                         help="pass input from stdin to cmd")
     parser.add_argument("--init", action="store_true",
                         help="force initializiation")
+    parser.add_argument("-d", "--direct", action="store_true",
+                        help="pass output direct to plugin")
+    parser.add_argument("-p", "--plugin",
+                        help="do not guess. select a specific plugin")
     parser.add_argument("-m", "--mode",
                         help="show mode (`cmd`, `json`)")
     args = parser.parse_args()
@@ -218,19 +228,29 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
     else:
         setUpLogger(False)
 
-
-    if not args.input and check_stdin():
-        cmd_to_run = sys.stdin.read()
-    else:
-        cmd_to_run = " ".join(args.cmd_input)
-
-    if not cmd_to_run:
-        parser.print_help()
-        sys.exit(0)
-
     show_output=(args.mode == 'cmd')
-    unisecbarber_parser = UnisecbarberParser(show_output=show_output, stdin_pipe=args.input)
-    result = unisecbarber_parser.run(cmd_to_run)
+    if args.direct:
+        if not check_stdin():
+            parser.print_help()
+            sys.exit(0)
+        if not args.plugin:
+            parser.print_help()
+            sys.exit(0)
+        direct_output = sys.stdin.read()
+        unisecbarber_parser = UnisecbarberParser(plugin=args.plugin)
+        result = unisecbarber_parser.parse_output(direct_output)
+    else:
+        if not args.input and check_stdin():
+            cmd_to_run = sys.stdin.read()
+        else:
+            cmd_to_run = " ".join(args.cmd_input)
+
+        if not cmd_to_run:
+            parser.print_help()
+            sys.exit(0)
+
+        unisecbarber_parser = UnisecbarberParser(show_output=show_output, stdin_pipe=args.input)
+        result = unisecbarber_parser.run(cmd_to_run)
 
     result_output = json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder)
     if args.output:
