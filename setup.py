@@ -25,6 +25,7 @@ setup(
     url='',
     license=license,
     packages=find_packages(exclude=('tests', 'docs')),
+    package_data={'unisecbarber.config': ['*.xml']},
     entry_points = {
         "console_scripts": ['unisecbarber = unisecbarber.unisecbarber:main']
     }

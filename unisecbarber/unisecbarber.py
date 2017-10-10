@@ -111,6 +111,16 @@ class UnisecbarberParser(object):
 
         return self._plugin_controller.parse_command(pid, cmd.returncode, output)
 
+def setup_folders(folderlist):
+    """Checks if a list of folders exists and creates them otherwise.
+
+    """
+    for folder in folderlist:
+        fp_folder = os.path.join(UNISECBARBER_USER_HOME, folder)
+        if not os.path.isdir(fp_folder):
+            getLogger().info("Creating %s" % fp_folder)
+            os.makedirs(fp_folder)
+
 def setup_plugins(force=False):
     """Checks and handles Faraday's plugin status.
 
@@ -132,8 +142,6 @@ def setup_plugins(force=False):
     else:
         getLogger().info("No plugins folder detected. Creating new one.")
         shutil.copytree(UNISECBARBER_PLUGINS_BASEPATH, UNISECBARBER_PLUGINS_PATH)
-
-
 
 def setup_xml_config(force=False):
     """Checks user configuration file status.
@@ -159,10 +167,12 @@ def check_configuration(force=False):
     Faraday. This includes checking for plugin folders, libraries,
     and ZSH integration.
     """
-    getLogger().info("Checking configuration.")
-    getLogger().info("Setting up plugins.")
+    getLogger().info("Creating initial folders structure ...")
+    setup_folders(CONST_UNISECBARBER_FOLDER_LIST)
+    getLogger().info("Checking configuration ...")
+    getLogger().info("Setting up plugins ...")
     setup_plugins(force=force)
-    getLogger().info("Setting up user configuration.")
+    getLogger().info("Setting up user configuration ...")
     setup_xml_config(force=force)
 
 def main():
