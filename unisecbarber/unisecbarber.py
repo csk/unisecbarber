@@ -118,7 +118,7 @@ def setup_folders(folderlist):
     for folder in folderlist:
         fp_folder = os.path.join(UNISECBARBER_USER_HOME, folder)
         if not os.path.isdir(fp_folder):
-            getLogger().info("Creating %s" % fp_folder)
+            # getLogger().info("Creating %s" % fp_folder)
             os.makedirs(fp_folder)
 
 def setup_plugins(force=False):
@@ -167,7 +167,9 @@ def check_configuration(force=False):
     Faraday. This includes checking for plugin folders, libraries,
     and ZSH integration.
     """
-    getLogger().info("Creating initial folders structure ...")
+    
+    # getLogger().info("Creating initial folders structure ...")
+    # Logger path is created here, so it is available since now
     setup_folders(CONST_UNISECBARBER_FOLDER_LIST)
     getLogger().info("Checking configuration ...")
     getLogger().info("Setting up plugins ...")

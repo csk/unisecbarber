@@ -13,9 +13,9 @@ import os
 from unisecbarber.config.globals import CONST_UNISECBARBER_HOME_PATH, CONST_UNISECBARBER_LOGS_PATH
 
 
-UNISECBARBER_USER_HOME = CONST_UNISECBARBER_HOME_PATH
+UNISECBARBER_USER_HOME = os.path.expanduser(CONST_UNISECBARBER_HOME_PATH)
 LOG_FILE = os.path.join(
-    CONST_UNISECBARBER_LOGS_PATH, 'unisecbarber.log')
+    UNISECBARBER_USER_HOME, CONST_UNISECBARBER_LOGS_PATH, 'unisecbarber.log')
 
 
 def setUpLogger(debug=False):
