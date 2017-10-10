@@ -40,6 +40,9 @@ UNISECBARBER_USER_CONFIG_XML = os.path.join(UNISECBARBER_USER_HOME, CONST_UNISEC
 UNISECBARBER_BASE_CONFIG_XML = os.path.join(UNISECBARBER_BASE, CONST_UNISECBARBER_BASE_CFG)
 UNISECBARBER_VERSION_FILE = os.path.join(UNISECBARBER_BASE, CONST_VERSION_FILE)
 
+CONF = getInstanceConfiguration()
+
+
 class UnisecbarberParser(object):
     """
     TODO: Doc string.
@@ -49,6 +52,10 @@ class UnisecbarberParser(object):
         self._registerObjectTypes()
         self._do_show_output = show_output
         self._do_stdin_pipe = stdin_pipe
+
+        CONF = getInstanceConfiguration()
+        plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
+        self._plugin_controller = PluginController('PluginController', plugin_manager)
 
     def _registerObjectTypes(self):
         """
@@ -71,7 +78,7 @@ class UnisecbarberParser(object):
         pid=1 # maybe not usefull at all
         
         getLogger().info("input: '%s'" % (cmd_input, ))
-        plugin_id, mod_cmd = plugin_controller.process_command_input(pid, cmd_input, pwd)
+        plugin_id, mod_cmd = self._plugin_controller.process_command_input(pid, cmd_input, pwd)
 
         run_cmd  = cmd_input
         if mod_cmd is not None:
@@ -105,10 +112,9 @@ class UnisecbarberParser(object):
         getLogger().info("plugin.id: %s" % (plugin_id,))
         getLogger().info("modified_cmd_string: %s" % (mod_cmd,))
 
-        return plugin_controller.parse_command(pid, cmd.returncode, output)
+        return self._plugin_controller.parse_command(pid, cmd.returncode, output)
 
-
-def setup_plugins(dev_mode=False):
+def setup_plugins(force=False):
     """Checks and handles Faraday's plugin status.
 
     When dev_mode is True, the user enters in development mode and the plugins
@@ -121,57 +127,48 @@ def setup_plugins(dev_mode=False):
     run faraday with a inestability warning.
 
     """
-
-    if dev_mode:
-        getLogger().warning("Running under plugin development mode!")
-        getLogger().warning("Using user plugins folder")
-    else:
-        if os.path.isdir(UNISECBARBER_PLUGINS_PATH):
-            getLogger().info("Removing old plugins folder.")
+    if os.path.isdir(UNISECBARBER_PLUGINS_PATH):
+        if force:
+            getLogger().info("Removing and re-creating plugins folder.")
             shutil.rmtree(UNISECBARBER_PLUGINS_PATH)
-        else:
-            getLogger().info("No plugins folder detected. Creating new one.")
-
+            shutil.copytree(UNISECBARBER_PLUGINS_BASEPATH, UNISECBARBER_PLUGINS_PATH)
+    else:
+        getLogger().info("No plugins folder detected. Creating new one.")
         shutil.copytree(UNISECBARBER_PLUGINS_BASEPATH, UNISECBARBER_PLUGINS_PATH)
 
 
-def setup_xml_config():
+
+def setup_xml_config(force=False):
     """Checks user configuration file status.
 
     If there is no custom config the default one will be copied as a default.
     """
 
-    if not os.path.isfile(UNISECBARBER_USER_CONFIG_XML):
+    if os.path.isfile(UNISECBARBER_USER_CONFIG_XML):
+        if force:
+            getLogger().info("Copying default configuration from project.")
+            shutil.copy(UNISECBARBER_BASE_CONFIG_XML, UNISECBARBER_USER_CONFIG_XML)
+    else:
         getLogger().info("Copying default configuration from project.")
         if not os.path.exists(os.path.dirname(UNISECBARBER_USER_CONFIG_XML)):
             os.mkdir(os.path.dirname(UNISECBARBER_USER_CONFIG_XML))
         shutil.copy(UNISECBARBER_BASE_CONFIG_XML, UNISECBARBER_USER_CONFIG_XML)
-    else:
-        getLogger().info("Using custom user configuration.")
 
 
-def check_configuration():
+def check_configuration(force=False):
     """Checks if the environment is ready to run Faraday.
 
     Checks different environment requirements and sets them before starting
     Faraday. This includes checking for plugin folders, libraries,
     and ZSH integration.
     """
-    print("FOOO")
     getLogger().info("Checking configuration.")
     getLogger().info("Setting up plugins.")
-    setup_plugins()
+    setup_plugins(force=force)
     getLogger().info("Setting up user configuration.")
-    setup_xml_config()
+    setup_xml_config(force=force)
 
-
-setUpLogger(False)
-check_configuration()
-CONF = getInstanceConfiguration()
-plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
-plugin_controller = PluginController('PluginController', plugin_manager)
-
-def main():    
+def main():
 
     parser = argparse.ArgumentParser()
     parser.prog = 'unisecbarber'
@@ -188,14 +185,26 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
                         help="store to file")
     parser.add_argument("-i", "--input", action="store_true",
                         help="pass input from stdin to cmd")
+    parser.add_argument("--init", action="store_true",
+                        help="force initializiation")
     parser.add_argument("-m", "--mode",
                         help="show mode (`cmd`, `json`)")
     args = parser.parse_args()
 
-    show_output=(args.mode == 'cmd')
+    if args.init:
+        check_configuration(True)
+        print("Copied original configuration and plugins to '%s'" % UNISECBARBER_USER_HOME)
+        sys.exit(0)
+    else:
+        check_configuration()
+    CONF.init()
+
     if args.verbose >= 1:
         setUpLogger(True)
-        
+    else:
+        setUpLogger(False)
+
+
     if not args.input and select.select([sys.stdin,],[],[],0.0)[0]:
         cmd_to_run = sys.stdin.read()
     else:
@@ -205,6 +214,7 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
         parser.print_help()
         sys.exit(0)
 
+    show_output=(args.mode == 'cmd')
     unisecbarber_parser = UnisecbarberParser(show_output=show_output, stdin_pipe=args.input)
     result = unisecbarber_parser.run(cmd_to_run)
 

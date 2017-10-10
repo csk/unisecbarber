@@ -34,6 +34,9 @@ class Configuration:
         """ Initializer that handles a configuration automagically. """
 
         self.filepath = xml_file
+    
+    def init(self):
+        """ Must be called after the constructor and before some obj tries to read some conf """
         if self._isConfig(): self._getConfig()
 
     def _isConfig(self):
@@ -205,7 +208,6 @@ class Configuration:
         self.indent(ROOT, 0)
         xml_file = os.path.expanduser(xml_file)
         ElementTree(ROOT).write(xml_file)
-
 
 def getInstanceConfiguration():
     global the_config
