@@ -84,10 +84,7 @@ class UnisecbarberParser(object):
         if mod_cmd is not None:
             run_cmd = mod_cmd
         
-        f, tmp_file = mkstemp()
-        os.close(f)
-
-        final_cmd = "%s 2>&1 | tee -a %s" % (run_cmd, tmp_file)
+        final_cmd = "%s 2>&1" % (run_cmd,)
         getLogger().info("running: %s" % (final_cmd,))
         cmd = subprocess.Popen(final_cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if self._do_stdin_pipe:
