@@ -37,6 +37,9 @@ def merge_two_dicts(x, y):
     z.update(y)
     return z
 
+def clean_str(msg):
+    return msg.strip(' \n\r\t')
+
 
 def _flatten_dictionary(dictionary):
     """Given a dictionary with dictionaries inside, create a new flattened
@@ -342,10 +345,10 @@ class Vuln(ModelBase):
     def __init__(self, vuln):
         ModelBase.__init__(self, vuln)
         # this next two lines are stupid but so is life so you should get used to it :)
-        self.description = vuln['desc']
-        self.desc = vuln['desc']
+        self.description = clean_str(vuln.get('desc', ''))
+        self.desc = clean_str(vuln.get('desc', ''))
         self.data = vuln.get('data')
-        self.severity = self.standarize(vuln['severity'])
+        self.severity = self.standarize(vuln.get('severity'))
         self.refs = vuln.get('refs') or []
         self.confirmed = vuln.get('confirmed', False)
         self.resolution = vuln.get('resolution')

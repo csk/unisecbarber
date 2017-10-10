@@ -175,6 +175,11 @@ def check_configuration(force=False):
     getLogger().info("Setting up user configuration ...")
     setup_xml_config(force=force)
 
+def check_stdin():
+    """ Checks it data is being piped in trough stdin """
+    return select.select([sys.stdin,],[],[],0.0)[0]
+
+
 def main():
 
     parser = argparse.ArgumentParser()
@@ -212,7 +217,7 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
         setUpLogger(False)
 
 
-    if not args.input and select.select([sys.stdin,],[],[],0.0)[0]:
+    if not args.input and check_stdin():
         cmd_to_run = sys.stdin.read()
     else:
         cmd_to_run = " ".join(args.cmd_input)
