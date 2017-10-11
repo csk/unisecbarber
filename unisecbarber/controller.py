@@ -91,6 +91,7 @@ class PluginController(object):
     def get_plugin_by_id(self, pid):
         if not self.plugin_set:
             self.createPluginSet()
+
         if pid in self.plugin_set.keys():
             return self.plugin_set[pid]
         return None
