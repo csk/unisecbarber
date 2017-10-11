@@ -27,7 +27,7 @@ class PluginController(object):
         self._plugins = plugin_manager.getPlugins()
         self.id = id
         self.output_path = '.'
-        self._active_plugins = {}
+        self._active_plugin = None
         self.plugin_set = None
         self.plugin_manager.addController(self, self.id)
 
@@ -139,4 +139,4 @@ class PluginController(object):
 
 
     def clearActivePlugins(self):
-        self._active_plugins = {}
+        self._active_plugin = None
