@@ -11,24 +11,16 @@ __version__ = "0.1.0"
 import os
 import sys
 import json
-import subprocess
-import shlex
 import argparse
 import select
 import shutil
-from tempfile import mkstemp
 
 from config.globals import *
 
-
-from . import models
-from .manager import PluginManager
-from .controller import PluginController
 from .config.configuration import getInstanceConfiguration
 from .utils.logs import getLogger, setUpLogger
-from .common import factory
 from .encoders import ComplexEncoder
-from .helpers import term_width_line_msg
+from .parsers import UnisecbarberParser
 
 USER_HOME = os.path.expanduser(CONST_USER_HOME)
 UNISECBARBER_BASE = os.path.dirname(os.path.realpath(__file__))
@@ -41,81 +33,6 @@ UNISECBARBER_BASE_CONFIG_XML = os.path.join(UNISECBARBER_BASE, CONST_UNISECBARBE
 UNISECBARBER_VERSION_FILE = os.path.join(UNISECBARBER_BASE, CONST_VERSION_FILE)
 
 CONF = getInstanceConfiguration()
-
-
-class UnisecbarberParser(object):
-    """
-    TODO: Doc string.
-    """
-    def __init__(self, show_output=False, stdin_pipe=False, plugin=None):
-        self._object_factory = factory
-        self._registerObjectTypes()
-        self._do_show_output = show_output
-        self._do_stdin_pipe = stdin_pipe
-        self._plugin = plugin
-
-        CONF = getInstanceConfiguration()
-        plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
-        self._plugin_controller = PluginController('PluginController', plugin_manager)
-
-    def _registerObjectTypes(self):
-        """
-        Registers in the factory all object types that can be created
-        """
-        # This could be done in hosts module, but it seems easier to maintain
-        # if we have all in one place inside the controller
-        self._object_factory.register(models.Host)
-        self._object_factory.register(models.Interface)
-        self._object_factory.register(models.Service)
-        self._object_factory.register(models.Vuln)
-        self._object_factory.register(models.VulnWeb)
-        self._object_factory.register(models.Note)
-        self._object_factory.register(models.Credential)
-
-    def run(self, cmd_input):
-        cmd_input = cmd_input.strip(' \t\n\r')
-
-        pwd = os.getcwd()
-        
-        getLogger().info("input: '%s'" % (cmd_input, ))
-        plugin_id, mod_cmd = self._plugin_controller.process_command_input(cmd_input, pwd)
-
-        run_cmd  = cmd_input
-        if mod_cmd is not None:
-            run_cmd = mod_cmd
-        
-        final_cmd = "%s 2>&1" % (run_cmd,)
-        getLogger().info("running: %s" % (final_cmd,))
-        cmd = subprocess.Popen(final_cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if self._do_stdin_pipe:
-            output, err = cmd.communicate(input=sys.stdin.read())
-            if self._do_show_output:
-                sys.stdout.write(output)
-        elif self._do_show_output:
-            output=""
-            while True:
-                line = cmd.stdout.readline()
-                if not line: break
-                sys.stdout.write(line)
-                output += line
-            sys.stdout.flush()
-            output2, err = cmd.communicate()
-            output += output2
-        else:
-            output, err = cmd.communicate()
-
-        getLogger().info("output: %s" % (output,))
-        getLogger().info("err: %s" % (err,))
-        getLogger().info("plugin.id: %s" % (plugin_id,))
-        getLogger().info("modified_cmd_string: %s" % (mod_cmd,))
-
-        return self._plugin_controller.parse_command(cmd.returncode, output)
-
-    def parse_output(self, output):
-        ret_code=0
-        plugin = self._plugin_controller.get_plugin_by_id(self._plugin)
-        return self._plugin_controller.parse_command(ret_code, output, plugin=plugin)
-
 
 def setup_folders(folderlist):
     """Checks if a list of folders exists and creates them otherwise.
