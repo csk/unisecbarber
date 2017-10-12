@@ -45,6 +45,7 @@ class PluginBase(object):
         self._completition = {}
         self._new_elems = []
         self._settings = {}
+        self._meta = None
 
         self.result_builder = ResultBuilder()
 
@@ -53,13 +54,16 @@ class PluginBase(object):
     def get_result(self):
         return self.result_builder.get_result()
 
+    def set_meta(self, meta):
+        self._meta = meta
+
     def has_custom_output(self):
         return bool(self._output_file_path)
 
     def get_custom_file_path(self):
         return self._output_file_path
 
-    def getSettings(self):
+    def get_settings(self):
         for param, (param_type, value) in self._settings.iteritems():
             yield param, value
 
@@ -67,10 +71,16 @@ class PluginBase(object):
         return '__unisecbarber__'
 
     def getSetting(self, name):
+        return self.get_setting(name)
+        
+    def get_setting(self, name):
         setting_type, value = self._settings[name]
         return value
 
     def addSetting(self, param, param_type, value):
+        self.add_setting(param, param_type, value)
+    
+    def add_setting(self, param, param_type, value):
         self._settings[param] = param_type, value
 
     def updateSettings(self, new_settings):

@@ -86,7 +86,14 @@ class UnisecbarberParser(object):
 
         return self._plugin_controller.parse_command(cmd.returncode, output)
 
-    def parse_output(self, output):
+    def parse_output(self, output, cmd_input=None):
         ret_code=0
-        plugin = self._plugin_controller.get_plugin_by_id(self._plugin)
+        if self._plugin:
+            plugin = self._plugin_controller.get_plugin_by_id(self._plugin)
+        elif cmd_input:
+            plugin = self._plugin_controller.get_plugin_by_input(cmd_input)
+
+        if not plugin:
+            raise Exception("No plugin found to parse given content!")
+
         return self._plugin_controller.parse_command(ret_code, output, plugin=plugin)

@@ -28,11 +28,7 @@ class PluginController(object):
         self.id = id
         self.output_path = '.'
         self._active_plugin = None
-        self.plugin_set = None
         self.plugin_manager.addController(self, self.id)
-
-    def _find_plugin(self, plugin_id):
-        return self._plugins.get(plugin_id, None)
 
     def _is_command_malformed(self, original_command, modified_command):
         """
@@ -65,35 +61,21 @@ class PluginController(object):
 
         return block_flag
 
-    def _get_plugins_by_input(self, cmd, plugin_set):
-        for plugin in plugin_set.itervalues():
+    def get_plugin_by_input(self, cmd):
+
+        for plugin in self._plugins.itervalues():
             if plugin.canParseCommandString(cmd):
                 return plugin
         return None
 
-    def getAvailablePlugins(self):
-        """
-        Return a dictionary with the available plugins.
-        Plugin ID's as keys and plugin instences as values
-        """
-        return self._plugins
+    def update_plugin_settings(self, plugin_id, new_settings):
 
-    def updatePluginSettings(self, plugin_id, new_settings):
-
-        if plugin_id in self.plugin_set:
-            plugin_set[plugin_id].updateSettings(new_settings)
         if plugin_id in self._plugins:
             self._plugins[plugin_id].updateSettings(new_settings)
 
-    def createPluginSet(self):
-        self.plugin_set = self.plugin_manager.getPlugins()
-
     def get_plugin_by_id(self, pid):
-        if not self.plugin_set:
-            self.createPluginSet()
-
-        if pid in self.plugin_set.keys():
-            return self.plugin_set[pid]
+        if pid in self._plugins.keys():
+            return self._plugins[pid]
         return None
 
     def process_command_input(self, cmd, pwd):
@@ -101,10 +83,7 @@ class PluginController(object):
         This method tries to find a plugin to parse the command sent
         by the terminal (identiefied by the process id).
         """
-        if not self.plugin_set:
-            self.createPluginSet()
-
-        plugin = self._get_plugins_by_input(cmd, self.plugin_set)
+        plugin = self.get_plugin_by_input(cmd)
 
         if plugin:
             modified_cmd_string = plugin.processCommandString("", pwd, cmd)
@@ -137,7 +116,3 @@ class PluginController(object):
 
         self._active_plugin = None
         return plugin.get_result()
-
-
-    def clearActivePlugins(self):
-        self._active_plugin = None

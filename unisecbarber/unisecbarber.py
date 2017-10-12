@@ -146,22 +146,21 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
         setUpLogger(False)
 
     show_output=(args.mode == 'cmd')
+
+    if not args.input and not args.direct and check_stdin():
+        cmd_to_run = sys.stdin.read()
+    else:
+        cmd_to_run = " ".join(args.cmd_input)
+    
     if args.direct:
         if not check_stdin():
             parser.print_help()
             sys.exit(0)
-        if not args.plugin:
-            parser.print_help()
-            sys.exit(0)
+        
         direct_output = sys.stdin.read()
         unisecbarber_parser = UnisecbarberParser(plugin=args.plugin)
-        result = unisecbarber_parser.parse_output(direct_output)
+        result = unisecbarber_parser.parse_output(direct_output, cmd_input=cmd_to_run)
     else:
-        if not args.input and check_stdin():
-            cmd_to_run = sys.stdin.read()
-        else:
-            cmd_to_run = " ".join(args.cmd_input)
-
         if not cmd_to_run:
             parser.print_help()
             sys.exit(0)

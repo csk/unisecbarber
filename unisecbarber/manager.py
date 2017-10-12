@@ -46,7 +46,7 @@ class PluginManager(object):
                 "description": plugin.description,
                 "version": plugin.version,
                 "plugin_version": plugin.plugin_version,
-                "settings": dict(plugin.getSettings())
+                "settings": dict(plugin.get_settings())
                 }
 
         dplugins = []
@@ -70,7 +70,7 @@ class PluginManager(object):
         for plugin_id, params in settings.iteritems():
             new_settings = params["settings"]
             for c_id, c_instance in self._controllers.iteritems():
-                c_instance.updatePluginSettings(plugin_id, new_settings)
+                c_instance.update_plugin_settings(plugin_id, new_settings)
 
     def _instancePlugins(self):
         plugins = {}
