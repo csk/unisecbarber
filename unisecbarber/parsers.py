@@ -91,7 +91,8 @@ class UnisecbarberParser(object):
         if self._plugin:
             plugin = self._plugin_controller.get_plugin_by_id(self._plugin)
         elif cmd_input:
-            plugin = self._plugin_controller.get_plugin_by_input(cmd_input)
+            # the following '+ " _"' is a hack so regex matches (they often need at least a space)
+            plugin = self._plugin_controller.get_plugin_by_input(cmd_input + " _")
 
         if not plugin:
             raise Exception("No plugin found to parse given content!")
