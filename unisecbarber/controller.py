@@ -106,8 +106,9 @@ class PluginController(object):
         elif not self._active_plugin:
             return False
         if exit_code != 0:
-            self._active_plugin = None
-            return False
+            pass # FIXME: some command (e.g: do exit with non-zero)
+            # self._active_plugin = None
+            # return False
 
         plugin, cmd_info = self._active_plugin
         plugin.process_output(term_output)
