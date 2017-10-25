@@ -27,7 +27,7 @@ Once installed you are ready!
 ```
 $ unisecbarber -h
 usage: unisecbarber [-h] [-v] [-o OUTPUT] [-i] [--init] [-d] [-p PLUGIN]
-                    [-m MODE]
+                    [-m MODE] [-l]
                     [cmd_input [cmd_input ...]]
 
 unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools
@@ -51,8 +51,19 @@ optional arguments:
   -p PLUGIN, --plugin PLUGIN
                         do not guess. select a specific plugin
   -m MODE, --mode MODE  show mode (`cmd`, `json`)
+  -l, --list            list supported tools
 
 ___ }:)
+```
+
+## Supported plugins
+
+```
+$ unisecbarber --list
+Supported plugins:
+
+Netdiscover, Openvas, NexposeFull, Qualysguard, MetasploitOn, Arachni, Acunetix, Dnsenum, Theharvester, Appscan, Junit, Nessus, ftp, Listurls, Traceroute, Beef, Wapiti, Netsparker, pasteAnalyzer, W3af, ping, Telnet, Dnsmap, Amap, arp-scan, Fierce, X1, Metasploit, Hydra, Sslcheck, peepingtom, dirb, dig, Goohost, Medusa, propecia, netcat, sshdefaultscan, Core Impact, whois, Reverseraider, Hping3, Dnsrecon, Msfconsole, Nmap, Skipfish, fruitywifi, Ndiff, Metagoofil, wpscan, Wcscan, Maltego, Sentinel, Dnswalk, Retina, Nexpose, Zap, Webfuzzer
+
 ```
 
 ## Some Examples
