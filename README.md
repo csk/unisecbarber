@@ -59,7 +59,7 @@ ___ }:)
 ## Supported plugins
 
 ```
-$ unisecbarber --list
+$ unisecbarber --list |fold
 Supported plugins:
 
 Netdiscover, Openvas, NexposeFull, Qualysguard, MetasploitOn, Arachni, Acunetix,
