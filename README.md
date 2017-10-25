@@ -62,7 +62,13 @@ ___ }:)
 $ unisecbarber --list
 Supported plugins:
 
-Netdiscover, Openvas, NexposeFull, Qualysguard, MetasploitOn, Arachni, Acunetix, Dnsenum, Theharvester, Appscan, Junit, Nessus, ftp, Listurls, Traceroute, Beef, Wapiti, Netsparker, pasteAnalyzer, W3af, ping, Telnet, Dnsmap, Amap, arp-scan, Fierce, X1, Metasploit, Hydra, Sslcheck, peepingtom, dirb, dig, Goohost, Medusa, propecia, netcat, sshdefaultscan, Core Impact, whois, Reverseraider, Hping3, Dnsrecon, Msfconsole, Nmap, Skipfish, fruitywifi, Ndiff, Metagoofil, wpscan, Wcscan, Maltego, Sentinel, Dnswalk, Retina, Nexpose, Zap, Webfuzzer
+Netdiscover, Openvas, NexposeFull, Qualysguard, MetasploitOn, Arachni, Acunetix,
+ Dnsenum, Theharvester, Appscan, Junit, Nessus, ftp, Listurls, Traceroute, Beef,
+ Wapiti, Netsparker, pasteAnalyzer, W3af, ping, Telnet, Dnsmap, Amap, arp-scan, 
+Fierce, X1, Metasploit, Hydra, Sslcheck, peepingtom, dirb, dig, Goohost, Medusa,
+ propecia, netcat, sshdefaultscan, Core Impact, whois, Reverseraider, Hping3, Dn
+srecon, Msfconsole, Nmap, Skipfish, fruitywifi, Ndiff, Metagoofil, wpscan, Wcsca
+n, Maltego, Sentinel, Dnswalk, Retina, Nexpose, Zap, Webfuzzer
 
 ```
 
