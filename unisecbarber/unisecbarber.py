@@ -21,6 +21,8 @@ from .config.configuration import getInstanceConfiguration
 from .utils.logs import getLogger, setUpLogger
 from .encoders import ComplexEncoder
 from .parsers import UnisecbarberParser
+from .manager import PluginManager
+
 
 USER_HOME = os.path.expanduser(CONST_USER_HOME)
 UNISECBARBER_BASE = os.path.dirname(os.path.realpath(__file__))
@@ -130,6 +132,8 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
                         help="do not guess. select a specific plugin")
     parser.add_argument("-m", "--mode",
                         help="show mode (`cmd`, `json`)")
+    parser.add_argument("-l", "--list", action="store_true",
+                        help="list supported tools")
     args = parser.parse_args()
 
     if args.init:
@@ -152,6 +156,14 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
     else:
         cmd_to_run = " ".join(args.cmd_input)
     
+    if args.list:
+        plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
+        print("""
+Supported plugins:
+""".lstrip())
+        print(", ".join(plugin_manager.getPlugins().keys()))
+        sys.exit(0)
+
     if args.direct:
         if not check_stdin():
             parser.print_help()
