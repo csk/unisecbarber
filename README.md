@@ -64,7 +64,7 @@ ___ }:)
 `arp-scan` without **unisecbarber**
 
 ```
-# sudo arp-scan --interface=en0 --localnet
+# arp-scan --interface=en0 --localnet
 Interface: en0, datalink type: EN10MB (Ethernet)
 Starting arp-scan 1.9 with 256 hosts (http://www.nta-monitor.com/tools/arp-scan/)
 192.168.0.1	aa:bb:9c:a7:1b:8a	(Unknown)
@@ -158,7 +158,7 @@ Ending arp-scan 1.9: 256 hosts scanned in 1.853 seconds (138.15 hosts/sec). 2 re
 `nmap` without **unisecbarber**
 
 ```
-$ unisecbarber -- nmap -p21 --script vuln metasploitable2.local
+$ nmap -p21 --script vuln metasploitable2.local
 
 Starting Nmap 7.60 ( https://nmap.org ) at 2017-10-25 02:55 -03
 Pre-scan script results:
