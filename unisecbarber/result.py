@@ -1,9 +1,9 @@
-#!/usr/bin/python2.7
 # -*- coding: utf-8 -*-
 '''
 Copyright (c) 2017, Conrad Stein K
 All rights reserved.
 '''
+
 from models import (Result,
         Host,
         Interface,

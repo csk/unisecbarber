@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+
+'''
+Copyright (c) 2017, Conrad Stein K
+All rights reserved.
+'''
 import re
 from setuptools import setup, find_packages
 

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-
 '''
 Copyright (c) 2017, Conrad Stein K
 All rights reserved.
 '''
+
 from __future__ import print_function
 
 __version__ = "0.1.0"
