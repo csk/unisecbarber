@@ -24,6 +24,9 @@ from .parsers import UnisecbarberParser
 from .manager import PluginManager
 
 
+EXIT_SUCCESS = 0
+ERR_CODE_MISSING_PLUGIN = 10
+
 USER_HOME = os.path.expanduser(CONST_USER_HOME)
 UNISECBARBER_BASE = os.path.dirname(os.path.realpath(__file__))
 
@@ -162,12 +165,12 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
 Supported plugins:
 """.lstrip())
         print(", ".join(plugin_manager.getPlugins().keys()))
-        sys.exit(0)
+        sys.exit(EXIT_SUCCESS)
 
     if args.direct:
         if not check_stdin():
             parser.print_help()
-            sys.exit(0)
+            sys.exit(EXIT_SUCCESS)
         
         direct_output = sys.stdin.read()
         unisecbarber_parser = UnisecbarberParser(plugin=args.plugin)
@@ -175,10 +178,14 @@ Supported plugins:
     else:
         if not cmd_to_run:
             parser.print_help()
-            sys.exit(0)
+            sys.exit(EXIT_SUCCESS)
 
         unisecbarber_parser = UnisecbarberParser(show_output=show_output, stdin_pipe=args.input)
         result = unisecbarber_parser.run(cmd_to_run)
+
+    if result is None:
+        sys.exit(ERR_CODE_MISSING_PLUGIN)
+
 
     result_output = json.dumps(result, sort_keys=True, indent=4, cls=ComplexEncoder)
     if args.output:

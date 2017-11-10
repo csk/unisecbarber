@@ -9,6 +9,7 @@ from __future__ import print_function
 import os
 import sys
 import subprocess
+import signal
 
 from . import models
 from .manager import PluginManager
@@ -55,23 +56,50 @@ class UnisecbarberParser(object):
         getLogger().info("input: '%s'" % (cmd_input, ))
         plugin_id, mod_cmd = self._plugin_controller.process_command_input(cmd_input, pwd)
 
+        if plugin_id is None:
+            return None
+
         run_cmd  = cmd_input
         if mod_cmd is not None:
             run_cmd = mod_cmd
         
         final_cmd = "%s 2>&1" % (run_cmd,)
         getLogger().info("running: %s" % (final_cmd,))
-        cmd = subprocess.Popen(final_cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        try: 
+            cmd = None
+            # Register handler to pass keyboard interrupt to the subprocess
+            def handler(sig, frame):
+                if cmd:
+                    cmd.send_signal(signal.SIGINT)
+                else:
+                    raise KeyboardInterrupt
+            signal.signal(signal.SIGINT, handler)
+
+            cmd = subprocess.Popen(final_cmd, 
+                                    shell=True,
+                                    stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    bufsize=1, 
+                                    universal_newlines=True
+                                    )
+            if cmd.wait():
+                raise Exception("cmd '" + final_cmd + "' failed")
+        finally:
+            # Reset handler
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+
         if self._do_stdin_pipe:
             output, err = cmd.communicate(input=sys.stdin.read())
             if self._do_show_output:
                 sys.stdout.write(output)
         elif self._do_show_output:
+            sys.stdout.write("Running '" + final_cmd + "' ...\n")
             output=""
-            while True:
-                line = cmd.stdout.readline()
-                if not line: break
+            for line in iter(cmd.stdout.readline, b""):
                 sys.stdout.write(line)
+                sys.stdout.flush()
                 output += line
             sys.stdout.flush()
             output2, err = cmd.communicate()
@@ -95,6 +123,6 @@ class UnisecbarberParser(object):
             plugin = self._plugin_controller.get_plugin_by_input(cmd_input + " _")
 
         if not plugin:
-            raise Exception("No plugin found to parse given content!")
+            return None
 
         return self._plugin_controller.parse_command(ret_code, output, plugin=plugin)
