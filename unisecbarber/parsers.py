@@ -66,29 +66,21 @@ class UnisecbarberParser(object):
         final_cmd = "%s 2>&1" % (run_cmd,)
         getLogger().info("running: %s" % (final_cmd,))
 
-        try: 
-            cmd = None
-            # Register handler to pass keyboard interrupt to the subprocess
-            def handler(sig, frame):
-                if cmd:
-                    cmd.send_signal(signal.SIGINT)
-                else:
-                    raise KeyboardInterrupt
-            signal.signal(signal.SIGINT, handler)
 
-            cmd = subprocess.Popen(final_cmd, 
-                                    shell=True,
-                                    stdin=subprocess.PIPE,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    bufsize=1, 
-                                    universal_newlines=True
-                                    )
-            if cmd.wait():
-                raise Exception("cmd '" + final_cmd + "' failed")
-        finally:
-            # Reset handler
-            signal.signal(signal.SIGINT, signal.SIG_DFL)
+        def handler(sig, frame):
+            sys.stdout.write("HAAANDLER")
+            sys.stdout.flush()
+            if cmd:
+                cmd.send_signal(signal.SIGINT)
+            else:
+                raise KeyboardInterrupt
+        signal.signal(signal.SIGINT, handler)
+        cmd = subprocess.Popen(final_cmd, 
+                                shell=True,
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE
+                                )
 
         if self._do_stdin_pipe:
             output, err = cmd.communicate(input=sys.stdin.read())
@@ -106,6 +98,8 @@ class UnisecbarberParser(object):
             output += output2
         else:
             output, err = cmd.communicate()
+        
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
 
         getLogger().info("output: %s" % (output,))
         getLogger().info("err: %s" % (err,))
