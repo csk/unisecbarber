@@ -4,14 +4,17 @@
 '''
 Faraday Penetration Test IDE
 Copyright (C) 2016  Infobyte LLC (http://www.infobytesec.com/)
-
+See the file 'doc/LICENSE' for the license information
 '''
 
 from __future__ import with_statement
 from plugins import core
 from model import api
 import socket
+import os
+import random
 import re
+import subprocess
 
 try:
     import xml.etree.cElementTree as ET
@@ -20,7 +23,7 @@ except ImportError:
 
 __author__ = 'Ezequiel Tavella'
 __copyright__ = 'Copyright 2016, Faraday Project'
-__credits__ = ['Ezequiel Tavella', 'Matías Ariel Ré Medina', ]
+__credits__ = ['Ezequiel Tavella', 'Matías Ariel Ré Medina', 'Conrad Stein K']
 __license__ = ''
 __version__ = '1.0.1'
 __status__ = 'Development'
@@ -290,9 +293,12 @@ class Plugins():
 
         # Get info about healthmap
         healthmap_tree = self.plugins_node.find('healthmap')
+        if not healthmap_tree:
+            return 'None' 
 
         # Create urls list.
         list_urls = []
+
         map_results = healthmap_tree.find('results').find('map')
 
         for url in map_results:
@@ -372,12 +378,16 @@ class ArachniPlugin(core.PluginBase):
 
         self.address = None
 
+        self._command_string = None
+
+
     def parseOutputString(self, output, debug=False):
         """
         This method will discard the output the shell sends, it will read it
         from the xml where it expects it to be present.
         """
 
+        print output
         parser = ArachniXmlParser(output)
 
         # Check xml parsed ok...
@@ -389,6 +399,7 @@ class ArachniPlugin(core.PluginBase):
         self.address = self.getAddress(self.hostname)
 
         # Create host and interface
+        host_id = self.createAndAddHost("Foo")
         host_id = self.createAndAddHost(self.address)
 
         interface_id = self.createAndAddInterface(
@@ -471,8 +482,42 @@ class ArachniPlugin(core.PluginBase):
         return
 
     def processCommandString(self, username, current_path, command_string):
+        """
+        Use bash to run sequentialy arachni and arachni_reporter
+        """
+        
+        afr_output_file_path = os.path.join(
+            self.data_path,
+            "%s_%s_output-%s.afr" % (
+                self.get_ws(),
+                self.id,
+                random.uniform(1, 10))
+        )
 
-        return
+        self._command_string = command_string
+
+        report_arg_re = r"^.*(--report-save-path[=\s][^\s]+).*$"
+        arg_match = re.match(report_arg_re,command_string)
+        if arg_match is None:
+            main_cmd = re.sub(r"(^.*?arachni)",
+                          r"\1 --report-save-path=%s" % afr_output_file_path,
+                          command_string)
+        else:
+            main_cmd = re.sub(arg_match.group(1),
+                          r"--report-save-path=%s" % afr_output_file_path,
+                          command_string)
+
+        # add reporter
+        self._output_file_path = re.sub('.afr', '.xml', afr_output_file_path)
+        cmd_prefix_match = re.match(r"(^.*?)arachni ", self._command_string)
+        cmd_prefix = cmd_prefix_match.group(1)
+        reporter_cmd = "%s%s --reporter=\"xml:outfile=%s\" \"%s\"" % (
+                                            cmd_prefix, 
+                                            "arachni_reporter",
+                                            self._output_file_path,
+                                            afr_output_file_path)
+        return "/bin/bash -c '%s  2>&1 && %s 2>&1'" % (main_cmd, reporter_cmd)
+
 
     def getHostname(self, url):
 
