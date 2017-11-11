@@ -27,7 +27,7 @@ setup(
     long_description=readme,
     author='Conrad Stein K',
     author_email='conradsteink@gmail.com',
-    url='',
+    url='https://github.com/csk/unisecbarber',
     license=license,
     packages=find_packages(exclude=('tests', 'docs')),
     package_data={'unisecbarber.config': ['*.xml']},
