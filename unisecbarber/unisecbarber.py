@@ -157,8 +157,14 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
     if not args.input and not args.direct and check_stdin():
         cmd_to_run = sys.stdin.read()
     else:
-        cmd_to_run = " ".join(args.cmd_input)
-    
+        cmd_to_run = ""
+        for word in args.cmd_input:
+            if " " in word:
+                cmd_to_run += "\"%s\"" % (word,)
+            else:
+                cmd_to_run += "%s " % (word,)
+        cmd_to_run = cmd_to_run.strip()
+
     if args.list:
         plugin_manager = PluginManager(os.path.join(CONF.getConfigPath(), "plugins"))
         print("""
