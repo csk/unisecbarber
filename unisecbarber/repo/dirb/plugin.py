@@ -104,7 +104,7 @@ class dirbPlugin(core.PluginBase):
                 self.createAndAddNoteToService(host_id, serv_id, 'Url Fuzzing', self.text)
 
             if len(paths) > 0:
-                self.createAndAddVulnWebToService(host_id, serv_id, "Directory Listing", severity = "med", website = domain, request = paths, method = "GET")
+                self.createAndAddVulnWebToService(host_id, serv_id, "Directory Listing", severity = "med", website = domain, desc = paths, method = "GET")
 
         return True
 
