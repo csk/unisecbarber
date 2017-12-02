@@ -40,23 +40,6 @@ def clean_str(msg):
     return msg.strip(' \n\r\t')
 
 
-def _flatten_dictionary(dictionary):
-    """Given a dictionary with dictionaries inside, create a new flattened
-    dictionary from that one and return it.
-
-    It's not as general as it sounds. Do not use without looking at the
-    implementation.
-    """
-    flattened_dict = {}
-    if dictionary.get('_id'):
-        flattened_dict[u'_id'] = dictionary['_id']
-    if dictionary.get('id'):
-        flattened_dict[u'id'] = dictionary['id']
-    for k, v in dictionary.get('value', {}).items():
-        if k != '_id':  # this is the couch id, which we have saved on 'id'
-            flattened_dict[k] = v
-    return flattened_dict
-
 class Result(object):
 
     def __init__(self):
@@ -108,7 +91,7 @@ class ModelBase(object):
         self._metadata = obj.get('metadata', None)
 
     def set_id(self, parent_id, *args):
-        if  self.id and self.id != -1:
+        if self.id and self.id != -1:
             return None
         objid = get_hash(args)
         if parent_id:

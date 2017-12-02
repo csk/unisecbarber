@@ -103,7 +103,6 @@ class ModelObjectFactory(object):
         if classname in self._registered_objects:
             if object_name is not None:
                 objargs['name'] = object_name
-                objargs['_id'] = -1  # they still don't have a server id
                 objargs['id'] = -1 # we'll generate it after making sure the objects are okey
                 tmpObj = self._registered_objects[classname](objargs)
                 tmpObj.set_id(parent_id)
