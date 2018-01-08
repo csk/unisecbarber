@@ -4,7 +4,6 @@
 '''
 Faraday Penetration Test IDE
 Copyright (C) 2017  Infobyte LLC (http://www.infobytesec.com/)
-
 '''
 
 import pprint

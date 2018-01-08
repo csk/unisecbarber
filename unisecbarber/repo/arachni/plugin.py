@@ -4,7 +4,6 @@
 '''
 Faraday Penetration Test IDE
 Copyright (C) 2016  Infobyte LLC (http://www.infobytesec.com/)
-See the file 'doc/LICENSE' for the license information
 '''
 
 from __future__ import with_statement
@@ -23,7 +22,7 @@ except ImportError:
 
 __author__ = 'Ezequiel Tavella'
 __copyright__ = 'Copyright 2016, Faraday Project'
-__credits__ = ['Ezequiel Tavella', 'Matías Ariel Ré Medina', 'Conrad Stein K']
+__credits__ = ['Ezequiel Tavella', 'Matías Ariel Ré Medina','Conrad Stein K']
 __license__ = ''
 __version__ = '1.0.1'
 __status__ = 'Development'
@@ -378,8 +377,6 @@ class ArachniPlugin(core.PluginBase):
 
         self.address = None
 
-        self._command_string = None
-
 
     def parseOutputString(self, output, debug=False):
         """
@@ -494,8 +491,6 @@ class ArachniPlugin(core.PluginBase):
                 random.uniform(1, 10))
         )
 
-        self._command_string = command_string
-
         report_arg_re = r"^.*(--report-save-path[=\s][^\s]+).*$"
         arg_match = re.match(report_arg_re,command_string)
         if arg_match is None:
@@ -509,14 +504,14 @@ class ArachniPlugin(core.PluginBase):
 
         # add reporter
         self._output_file_path = re.sub('.afr', '.xml', afr_output_file_path)
-        cmd_prefix_match = re.match(r"(^.*?)arachni ", self._command_string)
+        cmd_prefix_match = re.match(r"(^.*?)arachni ", command_string)
         cmd_prefix = cmd_prefix_match.group(1)
         reporter_cmd = "%s%s --reporter=\"xml:outfile=%s\" \"%s\"" % (
                                             cmd_prefix, 
                                             "arachni_reporter",
                                             self._output_file_path,
                                             afr_output_file_path)
-        return "/bin/bash -c '%s  2>&1 && %s 2>&1'" % (main_cmd, reporter_cmd)
+        return "/usr/bin/env -- bash -c '%s  2>&1 && if [ -e \"%s\" ];then %s 2>&1;fi'" % (main_cmd, afr_output_file_path, reporter_cmd)
 
 
     def getHostname(self, url):

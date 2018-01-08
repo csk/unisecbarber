@@ -160,7 +160,7 @@ unisecbarber ("UNIversal SECurity Barber") is an effort to normalize sectools ge
         cmd_to_run = ""
         for word in args.cmd_input:
             if " " in word:
-                cmd_to_run += "\"%s\"" % (word,)
+                cmd_to_run += "\"%s\" " % (word,)
             else:
                 cmd_to_run += "%s " % (word,)
         cmd_to_run = cmd_to_run.strip()

@@ -4,7 +4,6 @@
 '''
 Faraday Penetration Test IDE
 Copyright (C) 2013  Infobyte LLC (http://www.infobytesec.com/)
-See the file 'doc/LICENSE' for the license information
 '''
 
 from plugins import core
@@ -29,7 +28,7 @@ class dirbPlugin(core.PluginBase):
         self.plugin_version = "0.0.1"
         self.version = "2.22"
         self.regexpUrl = r'((http[s]?)\:\/\/([\w\.]+)[.\S]+)'
-        self._command_regex = re.compile(r'^(?:sudo dirb|dirb|\.\/dirb|sudo \.\/dirb)\s+(?:(http[s]?)\:\/\/([\w\.]+)[.\S]+)')
+        self._command_regex = re.compile(r'.*(?:sudo dirb|dirb|\.\/dirb|sudo \.\/dirb)\s+(?:(http[s]?)\:\/\/([\w\.]+)[.\S]+)')
         self.text = []
         
 

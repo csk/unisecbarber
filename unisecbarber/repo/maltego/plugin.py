@@ -4,7 +4,6 @@
 """
 Faraday Penetration Test IDE
 Copyright (C) 2015  Infobyte LLC (http://www.infobytesec.com/)
-
 """
 
 from __future__ import with_statement

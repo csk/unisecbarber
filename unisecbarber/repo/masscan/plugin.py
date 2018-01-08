@@ -1,7 +1,6 @@
 '''
 Faraday Penetration Test IDE
 Copyright (C) 2015  Infobyte LLC (http://www.infobytesec.com/)
-
 '''
 
 from plugins.repo.nmap.plugin import NmapPlugin
